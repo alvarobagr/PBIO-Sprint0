@@ -153,6 +153,207 @@ El byte menos significativo de `major` representa el contador.
 
 El campo `minor` representa el valor de la medición.
 
+### Clase `MainActivity`
+
+Responsabilidad:
+
+Coordinar la inicialización de Bluetooth, el escaneo BLE, la recepción de
+resultados y las acciones realizadas desde la interfaz gráfica.
+
+La clase utiliza `TramaIBeacon` y `Utilidades` para interpretar la información
+recibida, pero no contiene lógica de backend ni acceso a base de datos.
+
+```text
+                 ---------------- MainActivity ----------------
+                 |
+                 | ETIQUETA_LOG: Text                         --x
+                 | CODIGO_PETICION_PERMISOS: N               --x
+                 | elEscanner: BluetoothLeScanner
+                 | callbackDelEscaneo: ScanCallback
+                 |
+                 |
+                 | --> buscarTodosLosDispositivosBTLE()
+                 |
+resultado: ScanResult
+              --> mostrarInformacionDispositivoBTLE()
+                 |
+dispositivo_buscado: Text
+              --> buscarEsteDispositivoBTLE()
+                 |
+                 | --> detenerBusquedaDispositivosBTLE()
+                 |
+                 | --> inicializarBlueTooth()
+                 |
+                 | --> botonBuscarDispositivosBTLEPulsado()
+                 |
+                 | --> botonBuscarNuestroDispositivoBTLEPulsado()
+                 |
+                 | --> botonDetenerBusquedaDispositivosBTLEPulsado()
+                 |
+                 | --> onCreate()
+                 |
+request_code: N,
+resultados: [Z]
+              --> onRequestPermissionsResult()
+                 |
+                 ------------------------------------------------
+```
+
+### Operaciones de `MainActivity`
+
+#### Inicialización de Bluetooth
+
+```text
+inicializarBlueTooth()
+```
+
+Responsabilidad:
+
+Inicializar el sistema Bluetooth del teléfono, obtener el escáner BLE y
+gestionar los permisos necesarios para poder realizar el escaneo.
+
+#### Buscar todos los dispositivos BLE
+
+```text
+buscarTodosLosDispositivosBTLE()
+```
+
+Responsabilidad:
+
+Iniciar un escaneo Bluetooth Low Energy sin filtrar y procesar los dispositivos
+detectados mediante un `ScanCallback`.
+
+#### Buscar un dispositivo BLE concreto
+
+```text
+dispositivo_buscado: Text
+    -->
+buscarEsteDispositivoBTLE()
+```
+
+Responsabilidad:
+
+Iniciar un escaneo BLE para localizar el dispositivo cuyo nombre se proporciona.
+
+El diseño original proporcionado por los profesores utiliza un `ScanFilter`
+basado en el nombre del dispositivo.
+
+#### Mostrar información de un dispositivo BLE
+
+```text
+resultado: ScanResult
+    -->
+mostrarInformacionDispositivoBTLE()
+```
+
+Responsabilidad:
+
+Obtener la información del resultado BLE detectado, incluyendo dispositivo,
+RSSI y bytes del anuncio.
+
+Cuando la trama recibida sea válida, utilizar `TramaIBeacon` y `Utilidades`
+para separar y mostrar sus campos.
+
+Esta operación no almacena datos ni realiza comunicaciones REST.
+
+#### Detener búsqueda BLE
+
+```text
+detenerBusquedaDispositivosBTLE()
+```
+
+Responsabilidad:
+
+Detener el escaneo BLE activo utilizando el mismo `ScanCallback` con el que se
+inició la búsqueda.
+
+#### Acciones de la interfaz
+
+```text
+botonBuscarDispositivosBTLEPulsado()
+```
+
+Inicia la búsqueda de todos los dispositivos BLE.
+
+```text
+botonBuscarNuestroDispositivoBTLEPulsado()
+```
+
+Inicia la búsqueda del dispositivo utilizado por el proyecto.
+
+```text
+botonDetenerBusquedaDispositivosBTLEPulsado()
+```
+
+Detiene la búsqueda BLE activa.
+
+Los parámetros `View` utilizados por Android para los eventos de los botones
+se consideran un detalle de implementación de la interfaz y no forman parte de
+la firma lógica.
+
+#### Creación de la actividad
+
+```text
+onCreate()
+```
+
+Responsabilidad:
+
+Inicializar la pantalla principal y comenzar la inicialización Bluetooth cuando
+se crea la actividad.
+
+El objeto `Bundle` recibido por Android se considera un detalle del framework y
+no forma parte de la firma lógica.
+
+#### Resultado de petición de permisos
+
+```text
+request_code: N,
+resultados: [Z]
+    -->
+onRequestPermissionsResult()
+```
+
+Responsabilidad:
+
+Procesar el resultado de la solicitud de permisos necesaria para utilizar
+Bluetooth.
+
+Los parámetros adicionales proporcionados por Android que únicamente forman
+parte del mecanismo del framework se omiten del diseño lógico.
+
+
+### Interfaz gráfica Android
+
+La interfaz inicial mantiene el diseño básico proporcionado por los profesores.
+
+Contiene tres botones:
+
+```text
+Buscar Dispositivos BTLE
+        |
+        v
+botonBuscarDispositivosBTLEPulsado()
+
+
+Detener búsqueda Dispositivos BTLE
+        |
+        v
+botonDetenerBusquedaDispositivosBTLEPulsado()
+
+
+Buscar nuestro dispositivo BTLE
+        |
+        v
+botonBuscarNuestroDispositivoBTLEPulsado()
+```
+
+En esta fase la información de los dispositivos detectados se muestra
+principalmente mediante el sistema de log de Android.
+
+La interfaz podrá ampliarse posteriormente si es necesario para el proyecto,
+pero cualquier ampliación deberá añadirse primero a este documento de diseño.
+
 ### Tests actuales
 
 Existe un test unitario para comprobar la separación e interpretación básica
