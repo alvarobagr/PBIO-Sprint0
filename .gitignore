@@ -1,0 +1,32 @@
+# Android / Gradle
+.gradle/
+**/.gradle/
+**/build/
+local.properties
+*.apk
+*.aab
+
+# Android Studio / IntelliJ
+.idea/
+**/.idea/
+*.iml
+
+# Kotlin / Android caches
+.kotlin/
+**/.kotlin/
+
+# Native builds
+.externalNativeBuild/
+.cxx/
+
+# Windows
+Thumbs.db
+Desktop.ini
+
+# macOS
+.DS_Store
+
+# Entornos y secretos
+.env
+*.jks
+*.keystore
