@@ -2,13 +2,14 @@
 -----------------------------------------------------------------------------
 Fichero: MainActivity.java
 Descripción: Actividad principal encargada de controlar el escaneo Bluetooth
-             Low Energy y mostrar la información de los dispositivos detectados.
+             Low Energy, interpretar las tramas iBeacon y mostrar los datos
+             recibidos del sensor.
 Copyright: Copyright (c) 2026 Álvaro Ballester Grau
 Fecha: 04/10/2026
 Autor: Álvaro Ballester Grau
 Aportación: Adaptación del código proporcionado por los profesores al proyecto
-            PBIO Sprint 0 y a los permisos Bluetooth de versiones actuales
-            de Android.
+            PBIO Sprint 0, compatibilidad con versiones actuales de Android y
+            visualización de los datos recibidos mediante BLE.
 -----------------------------------------------------------------------------
 */
 
@@ -31,6 +32,7 @@ import android.os.Build;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -93,6 +95,12 @@ public class MainActivity extends AppCompatActivity {
                     ETIQUETA_LOG,
                     "Error durante el escaneo BLE. Código = " + codigoError
             );
+
+            TextView textoEstado = findViewById(R.id.textoEstado);
+
+            textoEstado.setText(
+                    "Estado: Error de escaneo BLE (" + codigoError + ")"
+            );
         }
     };
 
@@ -121,7 +129,11 @@ public class MainActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
     private void inicializarBlueTooth() {
 
-        Log.d(ETIQUETA_LOG, "inicializarBlueTooth()");
+        Log.d(
+                ETIQUETA_LOG,
+                "inicializarBlueTooth()"
+        );
+
 
         /*
          * Android 12 (API 31) y posteriores.
@@ -176,7 +188,20 @@ public class MainActivity extends AppCompatActivity {
         BluetoothManager bluetoothManager =
                 (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
 
-        BluetoothAdapter bluetoothAdapter = bluetoothManager.getAdapter();
+
+        if (bluetoothManager == null) {
+
+            Log.e(
+                    ETIQUETA_LOG,
+                    "No se ha podido obtener BluetoothManager."
+            );
+
+            return;
+        }
+
+
+        BluetoothAdapter bluetoothAdapter =
+                bluetoothManager.getAdapter();
 
 
         if (bluetoothAdapter == null) {
@@ -212,7 +237,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        elEscanner = bluetoothAdapter.getBluetoothLeScanner();
+        elEscanner =
+                bluetoothAdapter.getBluetoothLeScanner();
 
 
         if (elEscanner == null) {
@@ -247,6 +273,14 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
+        TextView textoEstado =
+                findViewById(R.id.textoEstado);
+
+        textoEstado.setText(
+                "Estado: Buscando dispositivos BLE..."
+        );
+
+
         if (elEscanner == null) {
 
             inicializarBlueTooth();
@@ -268,13 +302,13 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        /*
-         * Evitamos mantener simultáneamente dos búsquedas con el mismo
-         * callback.
-         */
-        elEscanner.stopScan(callbackDelEscaneo);
+        elEscanner.stopScan(
+                callbackDelEscaneo
+        );
 
-        elEscanner.startScan(callbackDelEscaneo);
+        elEscanner.startScan(
+                callbackDelEscaneo
+        );
 
 
         Log.d(
@@ -290,11 +324,21 @@ public class MainActivity extends AppCompatActivity {
     // Inicia un escaneo BLE filtrando los resultados mediante el nombre del
     // dispositivo indicado.
     // -------------------------------------------------------------------------
-    private void buscarEsteDispositivoBTLE(String dispositivoBuscado) {
+    private void buscarEsteDispositivoBTLE(
+            String dispositivoBuscado
+    ) {
 
         Log.d(
                 ETIQUETA_LOG,
                 "buscarEsteDispositivoBTLE(): " + dispositivoBuscado
+        );
+
+
+        TextView textoEstado =
+                findViewById(R.id.textoEstado);
+
+        textoEstado.setText(
+                "Estado: Buscando " + dispositivoBuscado + "..."
         );
 
 
@@ -319,22 +363,31 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        ScanFilter filtro = new ScanFilter.Builder()
-                .setDeviceName(dispositivoBuscado)
-                .build();
+        ScanFilter filtro =
+                new ScanFilter.Builder()
+                        .setDeviceName(dispositivoBuscado)
+                        .build();
 
 
-        List<ScanFilter> filtros = new ArrayList<>();
+        List<ScanFilter> filtros =
+                new ArrayList<>();
 
-        filtros.add(filtro);
-
-
-        ScanSettings settings = new ScanSettings.Builder()
-                .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-                .build();
+        filtros.add(
+                filtro
+        );
 
 
-        elEscanner.stopScan(callbackDelEscaneo);
+        ScanSettings settings =
+                new ScanSettings.Builder()
+                        .setScanMode(
+                                ScanSettings.SCAN_MODE_LOW_LATENCY
+                        )
+                        .build();
+
+
+        elEscanner.stopScan(
+                callbackDelEscaneo
+        );
 
         elEscanner.startScan(
                 filtros,
@@ -345,7 +398,8 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(
                 ETIQUETA_LOG,
-                "Escaneo filtrado iniciado para: " + dispositivoBuscado
+                "Escaneo filtrado iniciado para: "
+                        + dispositivoBuscado
         );
     }
 
@@ -354,19 +408,24 @@ public class MainActivity extends AppCompatActivity {
     // resultado: ScanResult --> mostrarInformacionDispositivoBTLE()
     //
     // Obtiene la información del dispositivo BLE detectado y, cuando la trama
-    // tiene el formato esperado, utiliza TramaIBeacon para interpretar sus
-    // campos.
+    // presenta el formato esperado, utiliza TramaIBeacon y Utilidades para
+    // interpretar sus campos.
     // -------------------------------------------------------------------------
-    private void mostrarInformacionDispositivoBTLE(ScanResult resultado) {
+    private void mostrarInformacionDispositivoBTLE(
+            ScanResult resultado
+    ) {
 
         if (resultado == null) {
             return;
         }
 
 
-        BluetoothDevice dispositivo = resultado.getDevice();
+        BluetoothDevice dispositivo =
+                resultado.getDevice();
 
-        String nombreDispositivo = "(sin nombre)";
+
+        String nombreDispositivo =
+                "(sin nombre)";
 
 
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S
@@ -377,9 +436,11 @@ public class MainActivity extends AppCompatActivity {
                 ) == PackageManager.PERMISSION_GRANTED) {
 
             if (dispositivo != null
-                    && dispositivo.getName() != null) {
+                    &&
+                    dispositivo.getName() != null) {
 
-                nombreDispositivo = dispositivo.getName();
+                nombreDispositivo =
+                        dispositivo.getName();
             }
         }
 
@@ -400,7 +461,8 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
-        ScanRecord scanRecord = resultado.getScanRecord();
+        ScanRecord scanRecord =
+                resultado.getScanRecord();
 
 
         if (scanRecord == null) {
@@ -414,7 +476,8 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        byte[] bytes = scanRecord.getBytes();
+        byte[] bytes =
+                scanRecord.getBytes();
 
 
         if (bytes == null) {
@@ -435,7 +498,8 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(
                 ETIQUETA_LOG,
-                "Trama = " + Utilidades.bytesToHexString(bytes)
+                "Trama = "
+                        + Utilidades.bytesToHexString(bytes)
         );
 
 
@@ -462,8 +526,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * Se comprueba el prefijo utilizado por el ejemplo iBeacon de los
-         * profesores:
+         * Prefijo esperado:
          *
          * 02 01 06 1A FF 4C 00 02 15
          */
@@ -491,7 +554,9 @@ public class MainActivity extends AppCompatActivity {
 
 
         TramaIBeacon tramaIBeacon =
-                new TramaIBeacon(bytes);
+                new TramaIBeacon(
+                        bytes
+                );
 
 
         String uuid =
@@ -513,7 +578,8 @@ public class MainActivity extends AppCompatActivity {
 
 
         /*
-         * Interpretación utilizada actualmente en el diseño:
+         * Interpretación inicial basada en el código proporcionado
+         * por los profesores:
          *
          * byte alto de major -> tipo
          * byte bajo de major -> contador
@@ -521,11 +587,21 @@ public class MainActivity extends AppCompatActivity {
         int tipo =
                 (major >> 8) & 0xFF;
 
+
         int contador =
                 major & 0xFF;
 
+
         int valor =
                 minor;
+
+
+        int rssi =
+                resultado.getRssi();
+
+
+        int txPower =
+                tramaIBeacon.getTxPower();
 
 
         Log.d(
@@ -560,8 +636,125 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(
                 ETIQUETA_LOG,
-                "TxPower = " + tramaIBeacon.getTxPower()
+                "TxPower = " + txPower
         );
+
+
+        actualizarDatosSensor(
+                nombreDispositivo,
+                uuid,
+                major,
+                minor,
+                tipo,
+                contador,
+                valor,
+                rssi,
+                txPower
+        );
+    }
+
+
+    // -------------------------------------------------------------------------
+    // nombre_dispositivo: Text,
+    // uuid: Text,
+    // major: Z,
+    // minor: Z,
+    // tipo: N,
+    // contador: N,
+    // valor: Z,
+    // rssi: Z,
+    // tx_power: Z
+    // -->
+    // actualizarDatosSensor()
+    //
+    // Muestra en la interfaz gráfica los datos correspondientes al último
+    // anuncio BLE válido recibido.
+    // -------------------------------------------------------------------------
+    private void actualizarDatosSensor(
+            String nombreDispositivo,
+            String uuid,
+            int major,
+            int minor,
+            int tipo,
+            int contador,
+            int valor,
+            int rssi,
+            int txPower
+    ) {
+
+        runOnUiThread(() -> {
+
+            TextView textoEstado =
+                    findViewById(R.id.textoEstado);
+
+            TextView textoDispositivo =
+                    findViewById(R.id.textoDispositivo);
+
+            TextView textoUUID =
+                    findViewById(R.id.textoUUID);
+
+            TextView textoMajor =
+                    findViewById(R.id.textoMajor);
+
+            TextView textoMinor =
+                    findViewById(R.id.textoMinor);
+
+            TextView textoTipo =
+                    findViewById(R.id.textoTipo);
+
+            TextView textoContador =
+                    findViewById(R.id.textoContador);
+
+            TextView textoValor =
+                    findViewById(R.id.textoValor);
+
+            TextView textoRSSI =
+                    findViewById(R.id.textoRSSI);
+
+            TextView textoTxPower =
+                    findViewById(R.id.textoTxPower);
+
+
+            textoEstado.setText(
+                    "Estado: Sensor detectado"
+            );
+
+            textoDispositivo.setText(
+                    "Dispositivo: " + nombreDispositivo
+            );
+
+            textoUUID.setText(
+                    "UUID: " + uuid
+            );
+
+            textoMajor.setText(
+                    "Major: " + major
+            );
+
+            textoMinor.setText(
+                    "Minor: " + minor
+            );
+
+            textoTipo.setText(
+                    "Tipo: " + tipo
+            );
+
+            textoContador.setText(
+                    "Contador: " + contador
+            );
+
+            textoValor.setText(
+                    "Valor: " + valor
+            );
+
+            textoRSSI.setText(
+                    "RSSI: " + rssi + " dBm"
+            );
+
+            textoTxPower.setText(
+                    "TxPower: " + txPower + " dBm"
+            );
+        });
     }
 
 
@@ -594,12 +787,22 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        elEscanner.stopScan(callbackDelEscaneo);
+        elEscanner.stopScan(
+                callbackDelEscaneo
+        );
 
 
         Log.d(
                 ETIQUETA_LOG,
                 "Escaneo BLE detenido."
+        );
+
+
+        TextView textoEstado =
+                findViewById(R.id.textoEstado);
+
+        textoEstado.setText(
+                "Estado: Escaneo detenido"
         );
     }
 
@@ -610,7 +813,9 @@ public class MainActivity extends AppCompatActivity {
     // Responde a la pulsación del botón que inicia la búsqueda de todos los
     // dispositivos BLE.
     // -------------------------------------------------------------------------
-    public void botonBuscarDispositivosBTLEPulsado(View view) {
+    public void botonBuscarDispositivosBTLEPulsado(
+            View view
+    ) {
 
         buscarTodosLosDispositivosBTLE();
     }
@@ -622,9 +827,13 @@ public class MainActivity extends AppCompatActivity {
     // Responde a la pulsación del botón que busca específicamente el
     // dispositivo BLE utilizado en el proyecto.
     // -------------------------------------------------------------------------
-    public void botonBuscarNuestroDispositivoBTLEPulsado(View view) {
+    public void botonBuscarNuestroDispositivoBTLEPulsado(
+            View view
+    ) {
 
-        buscarEsteDispositivoBTLE("GTI-3A");
+        buscarEsteDispositivoBTLE(
+                "GTI-3A"
+        );
     }
 
 
@@ -633,7 +842,9 @@ public class MainActivity extends AppCompatActivity {
     //
     // Responde a la pulsación del botón que detiene el escaneo BLE.
     // -------------------------------------------------------------------------
-    public void botonDetenerBusquedaDispositivosBTLEPulsado(View view) {
+    public void botonDetenerBusquedaDispositivosBTLEPulsado(
+            View view
+    ) {
 
         detenerBusquedaDispositivosBTLE();
     }

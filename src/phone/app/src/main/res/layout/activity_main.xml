@@ -2,42 +2,142 @@
 
 <!--
 Fichero: activity_main.xml
-Descripción: Interfaz básica para controlar el escaneo Bluetooth Low Energy.
+Descripción: Interfaz principal de la aplicación Android para controlar el
+             escaneo BLE y mostrar los datos recibidos del sensor.
 Copyright: Copyright (c) 2026 Álvaro Ballester Grau
-Fecha: 03/10/2026
+Fecha: 04/10/2026
 Autor: Álvaro Ballester Grau
-Aportación: Adaptación de la interfaz proporcionada por los profesores al
-            proyecto PBIO Sprint 0.
+Aportación: Adaptación de la interfaz proporcionada por los profesores y
+            ampliación para mostrar los datos recibidos del sensor BLE.
 -->
 
-<android.widget.LinearLayout
+<ScrollView
     xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/main"
-    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <Button
-        android:id="@+id/botonBuscarDispositivosBTLE"
-        android:text="Buscar Dispositivos BTLE"
-        android:onClick="botonBuscarDispositivosBTLEPulsado"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+    <LinearLayout
+        android:id="@+id/main"
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:padding="16dp">
 
-    <Button
-        android:id="@+id/botonDetenerBusquedaDispositivosBTLE"
-        android:text="Detener búsqueda Dispositivos BTLE"
-        android:onClick="botonDetenerBusquedaDispositivosBTLEPulsado"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        <TextView
+            android:id="@+id/tituloAplicacion"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="PBIO - Sensor BLE"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
 
-    <Button
-        android:id="@+id/botonBuscarNuestroDispositivoBTLE"
-        android:text="Buscar nuestro dispositivo BTLE"
-        android:onClick="botonBuscarNuestroDispositivoBTLEPulsado"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content" />
+        <Button
+            android:id="@+id/botonBuscarDispositivosBTLE"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Buscar Dispositivos BTLE"
+            android:onClick="botonBuscarDispositivosBTLEPulsado" />
 
-</android.widget.LinearLayout>
+        <Button
+            android:id="@+id/botonDetenerBusquedaDispositivosBTLE"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Detener búsqueda Dispositivos BTLE"
+            android:onClick="botonDetenerBusquedaDispositivosBTLEPulsado" />
+
+        <Button
+            android:id="@+id/botonBuscarNuestroDispositivoBTLE"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Buscar nuestro dispositivo BTLE"
+            android:onClick="botonBuscarNuestroDispositivoBTLEPulsado"
+            android:layout_marginBottom="24dp" />
+
+        <TextView
+            android:id="@+id/textoEstado"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Estado: Esperando sensor..."
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="16dp" />
+
+        <TextView
+            android:id="@+id/textoDispositivo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Dispositivo: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoUUID"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="UUID: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoMajor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Major: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoMinor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Minor: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoTipo"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Tipo: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoContador"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Contador: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoValor"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Valor: -"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoRSSI"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="RSSI: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/textoTxPower"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="TxPower: -"
+            android:textSize="16sp"
+            android:layout_marginBottom="8dp" />
+
+    </LinearLayout>
+
+</ScrollView>
