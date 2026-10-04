@@ -2,14 +2,14 @@
 -----------------------------------------------------------------------------
 Fichero: MainActivity.java
 Descripción: Actividad principal encargada de controlar el escaneo Bluetooth
-             Low Energy, interpretar las tramas iBeacon y mostrar los datos
-             recibidos del sensor.
+             Low Energy, interpretar las tramas iBeacon, mostrar los datos
+             recibidos del sensor y permitir pruebas con una medición fake.
 Copyright: Copyright (c) 2026 Álvaro Ballester Grau
 Fecha: 04/10/2026
 Autor: Álvaro Ballester Grau
 Aportación: Adaptación del código proporcionado por los profesores al proyecto
-            PBIO Sprint 0, compatibilidad con versiones actuales de Android y
-            visualización de los datos recibidos mediante BLE.
+            PBIO Sprint 0, compatibilidad con versiones actuales de Android,
+            visualización BLE y soporte de lógica fake.
 -----------------------------------------------------------------------------
 */
 
@@ -96,7 +96,8 @@ public class MainActivity extends AppCompatActivity {
                     "Error durante el escaneo BLE. Código = " + codigoError
             );
 
-            TextView textoEstado = findViewById(R.id.textoEstado);
+            TextView textoEstado =
+                    findViewById(R.id.textoEstado);
 
             textoEstado.setText(
                     "Estado: Error de escaneo BLE (" + codigoError + ")"
@@ -135,9 +136,6 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
-        /*
-         * Android 12 (API 31) y posteriores.
-         */
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 
             if (ActivityCompat.checkSelfPermission(
@@ -164,9 +162,6 @@ public class MainActivity extends AppCompatActivity {
 
         } else {
 
-            /*
-             * Android 11 (API 30) y anteriores.
-             */
             if (ActivityCompat.checkSelfPermission(
                     this,
                     Manifest.permission.ACCESS_FINE_LOCATION
@@ -372,9 +367,7 @@ public class MainActivity extends AppCompatActivity {
         List<ScanFilter> filtros =
                 new ArrayList<>();
 
-        filtros.add(
-                filtro
-        );
+        filtros.add(filtro);
 
 
         ScanSettings settings =
@@ -503,17 +496,6 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
-        /*
-         * Trama mínima utilizada por TramaIBeacon:
-         *
-         * 9 bytes  -> prefijo
-         * 16 bytes -> UUID
-         * 2 bytes  -> major
-         * 2 bytes  -> minor
-         * 1 byte   -> txPower
-         *
-         * Total = 30 bytes
-         */
         if (bytes.length < 30) {
 
             Log.d(
@@ -525,11 +507,6 @@ public class MainActivity extends AppCompatActivity {
         }
 
 
-        /*
-         * Prefijo esperado:
-         *
-         * 02 01 06 1A FF 4C 00 02 15
-         */
         boolean esIBeacon =
                 (bytes[0] & 0xFF) == 0x02
                         && (bytes[1] & 0xFF) == 0x01
@@ -554,9 +531,7 @@ public class MainActivity extends AppCompatActivity {
 
 
         TramaIBeacon tramaIBeacon =
-                new TramaIBeacon(
-                        bytes
-                );
+                new TramaIBeacon(bytes);
 
 
         String uuid =
@@ -577,13 +552,6 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
-        /*
-         * Interpretación inicial basada en el código proporcionado
-         * por los profesores:
-         *
-         * byte alto de major -> tipo
-         * byte bajo de major -> contador
-         */
         int tipo =
                 (major >> 8) & 0xFF;
 
@@ -759,6 +727,120 @@ public class MainActivity extends AppCompatActivity {
 
 
     // -------------------------------------------------------------------------
+    // medicion: Medicion --> mostrarMedicionFake()
+    //
+    // Muestra en la interfaz gráfica los datos contenidos en una medición
+    // ficticia generada por LogicaFakeTelefono.
+    // -------------------------------------------------------------------------
+    private void mostrarMedicionFake(
+            Medicion medicion
+    ) {
+
+        TextView textoEstado =
+                findViewById(R.id.textoEstado);
+
+        TextView textoDispositivo =
+                findViewById(R.id.textoDispositivo);
+
+        TextView textoUUID =
+                findViewById(R.id.textoUUID);
+
+        TextView textoMajor =
+                findViewById(R.id.textoMajor);
+
+        TextView textoMinor =
+                findViewById(R.id.textoMinor);
+
+        TextView textoTipo =
+                findViewById(R.id.textoTipo);
+
+        TextView textoContador =
+                findViewById(R.id.textoContador);
+
+        TextView textoValor =
+                findViewById(R.id.textoValor);
+
+        TextView textoRSSI =
+                findViewById(R.id.textoRSSI);
+
+        TextView textoTxPower =
+                findViewById(R.id.textoTxPower);
+
+
+        textoEstado.setText(
+                "Estado: Medición fake"
+        );
+
+        textoDispositivo.setText(
+                "Dispositivo: " + medicion.getNombreDispositivo()
+        );
+
+        textoUUID.setText(
+                "UUID: " + medicion.getUuid()
+        );
+
+        textoMajor.setText(
+                "Major: No aplica"
+        );
+
+        textoMinor.setText(
+                "Minor: No aplica"
+        );
+
+        textoTipo.setText(
+                "Tipo: " + medicion.getTipo()
+        );
+
+        textoContador.setText(
+                "Contador: " + medicion.getContador()
+        );
+
+        textoValor.setText(
+                "Valor: " + medicion.getValor()
+        );
+
+        textoRSSI.setText(
+                "RSSI: " + medicion.getRssi() + " dBm"
+        );
+
+        textoTxPower.setText(
+                "TxPower: No aplica"
+        );
+
+
+        Log.d(
+                ETIQUETA_LOG,
+                "Medición fake cargada:"
+        );
+
+        Log.d(
+                ETIQUETA_LOG,
+                "UUID = " + medicion.getUuid()
+        );
+
+        Log.d(
+                ETIQUETA_LOG,
+                "Tipo = " + medicion.getTipo()
+        );
+
+        Log.d(
+                ETIQUETA_LOG,
+                "Valor = " + medicion.getValor()
+        );
+
+        Log.d(
+                ETIQUETA_LOG,
+                "Contador = " + medicion.getContador()
+        );
+
+        Log.d(
+                ETIQUETA_LOG,
+                "RSSI = " + medicion.getRssi()
+        );
+    }
+
+
+    // -------------------------------------------------------------------------
     // --> detenerBusquedaDispositivosBTLE()
     //
     // Detiene el escaneo Bluetooth Low Energy activo.
@@ -847,6 +929,25 @@ public class MainActivity extends AppCompatActivity {
     ) {
 
         detenerBusquedaDispositivosBTLE();
+    }
+
+
+    // -------------------------------------------------------------------------
+    // --> botonCargarMedicionFakePulsado()
+    //
+    // Solicita una medición a la lógica fake y la muestra en la interfaz
+    // gráfica.
+    // -------------------------------------------------------------------------
+    public void botonCargarMedicionFakePulsado(
+            View view
+    ) {
+
+        Medicion medicion =
+                LogicaFakeTelefono.crearMedicionFake();
+
+        mostrarMedicionFake(
+                medicion
+        );
     }
 
 

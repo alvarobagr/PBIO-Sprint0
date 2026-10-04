@@ -579,6 +579,107 @@ permiten comprobar directamente la información enviada por la placa.
 Esto es especialmente importante mientras no se haya validado con un teléfono
 Android físico la codificación exacta del anuncio BLE generado por el emisor.
 
+### Tipo `Medicion`
+
+Representa una medición ya interpretada por el teléfono y preparada para ser
+utilizada por las siguientes capas del sistema.
+
+```text
+Medicion=(
+    uuid: Text,
+    nombre_dispositivo: Text,
+    tipo: Text,
+    valor: Z,
+    contador: N,
+    rssi: Z
+)
+```
+
+La medición no contiene información propia del protocolo BLE como `major`,
+`minor` o `txPower`.
+
+Esos datos pertenecen a la recepción Bluetooth y se transforman antes de pasar
+la medición a otras capas.
+
+---
+
+### Clase `LogicaFakeTelefono`
+
+Responsabilidad:
+
+Generar una medición ficticia con el mismo formato lógico que utilizarán las
+mediciones reales obtenidas mediante Bluetooth.
+
+La lógica fake permite desarrollar y probar el resto del sistema sin depender
+de disponer físicamente de la placa ni de un teléfono Android con BLE.
+
+```text
+                 -------- LogicaFakeTelefono --------
+
+                 | --> crearMedicionFake() --> Medicion --x
+
+                 -------------------------------------
+```
+
+#### Crear medición ficticia
+
+```text
+crearMedicionFake() --> Medicion
+```
+
+Responsabilidad:
+
+Crear y devolver una medición ficticia válida para Sprint 0.
+
+La medición utilizada inicialmente será:
+
+```text
+uuid = "EPSG-GTI-PROY-3A"
+nombre_dispositivo = "GTI-3A"
+tipo = "O3"
+valor = 333
+contador = 30
+rssi = -68
+```
+
+Estos valores tienen finalidad de prueba.
+
+La lógica fake no realiza comunicaciones Bluetooth, REST ni acceso a base de
+datos.
+
+Su única responsabilidad es proporcionar una medición conocida y reproducible.
+
+---
+
+### Flujo de la lógica fake
+
+```text
+LogicaFakeTelefono
+        |
+        v
+crearMedicionFake()
+        |
+        v
+Medicion
+        |
+        +------------------> interfaz Android
+        |
+        +------------------> cliente REST (posteriormente)
+```
+
+La misma estructura `Medicion` se utilizará posteriormente para representar
+los datos obtenidos del sensor real.
+
+De esta forma, el origen de los datos puede cambiar sin modificar las capas
+posteriores:
+
+```text
+Sensor BLE ------\
+                  \
+                   --> Medicion --> REST
+                  /
+Lógica Fake -----/
+```
 ---
 
 ### Tests actuales
@@ -605,6 +706,57 @@ físicamente la placa BLE.
 
 La recepción real del anuncio Bluetooth deberá comprobarse posteriormente con
 un dispositivo Android físico compatible con BLE.
+
+### Visualización de la medición fake
+
+La interfaz Android incorpora un botón adicional destinado exclusivamente a
+probar el sistema sin disponer del sensor físico.
+
+```text
+Cargar medición fake
+        |
+        v
+botonCargarMedicionFakePulsado()
+        |
+        v
+LogicaFakeTelefono.crearMedicionFake()
+        |
+        v
+Medicion
+        |
+        v
+mostrarMedicionFake()
+        |
+        v
+Interfaz gráfica
+```
+
+#### Cargar medición fake
+
+```text
+botonCargarMedicionFakePulsado()
+```
+
+Responsabilidad:
+
+Solicitar una medición a `LogicaFakeTelefono` y mostrarla en la interfaz.
+
+#### Mostrar medición fake
+
+```text
+medicion: Medicion --> mostrarMedicionFake()
+```
+
+Responsabilidad:
+
+Mostrar en la pantalla los datos de una medición ficticia.
+
+Los campos propios de BLE que no forman parte de `Medicion`, como `Major`,
+`Minor` y `TxPower`, se mostrarán como no aplicables.
+
+La lógica fake no sustituye a la recepción BLE real. Se utiliza únicamente
+para permitir pruebas reproducibles del cliente y de las futuras
+comunicaciones REST.
 
 ---
 

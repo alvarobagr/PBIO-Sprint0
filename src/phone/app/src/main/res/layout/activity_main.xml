@@ -3,12 +3,13 @@
 <!--
 Fichero: activity_main.xml
 Descripción: Interfaz principal de la aplicación Android para controlar el
-             escaneo BLE y mostrar los datos recibidos del sensor.
+             escaneo BLE, mostrar los datos del sensor y probar una medición
+             ficticia.
 Copyright: Copyright (c) 2026 Álvaro Ballester Grau
 Fecha: 04/10/2026
 Autor: Álvaro Ballester Grau
 Aportación: Adaptación de la interfaz proporcionada por los profesores y
-            ampliación para mostrar los datos recibidos del sensor BLE.
+            ampliación para visualizar mediciones reales y ficticias.
 -->
 
 <ScrollView
@@ -53,7 +54,14 @@ Aportación: Adaptación de la interfaz proporcionada por los profesores y
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:text="Buscar nuestro dispositivo BTLE"
-            android:onClick="botonBuscarNuestroDispositivoBTLEPulsado"
+            android:onClick="botonBuscarNuestroDispositivoBTLEPulsado" />
+
+        <Button
+            android:id="@+id/botonCargarMedicionFake"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Cargar medición fake"
+            android:onClick="botonCargarMedicionFakePulsado"
             android:layout_marginBottom="24dp" />
 
         <TextView
