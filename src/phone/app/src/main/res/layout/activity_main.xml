@@ -1,19 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
+
+<!--
+Fichero: activity_main.xml
+Descripción: Interfaz básica para controlar el escaneo Bluetooth Low Energy.
+Copyright: Copyright (c) 2026 Álvaro Ballester Grau
+Fecha: 03/10/2026
+Autor: Álvaro Ballester Grau
+Aportación: Adaptación de la interfaz proporcionada por los profesores al
+            proyecto PBIO Sprint 0.
+-->
+
+<android.widget.LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/main"
+    android:orientation="vertical"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".MainActivity">
 
-    <TextView
+    <Button
+        android:id="@+id/botonBuscarDispositivosBTLE"
+        android:text="Buscar Dispositivos BTLE"
+        android:onClick="botonBuscarDispositivosBTLEPulsado"
         android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Hello World!"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+        android:layout_height="wrap_content" />
 
-</androidx.constraintlayout.widget.ConstraintLayout>
+    <Button
+        android:id="@+id/botonDetenerBusquedaDispositivosBTLE"
+        android:text="Detener búsqueda Dispositivos BTLE"
+        android:onClick="botonDetenerBusquedaDispositivosBTLEPulsado"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+    <Button
+        android:id="@+id/botonBuscarNuestroDispositivoBTLE"
+        android:text="Buscar nuestro dispositivo BTLE"
+        android:onClick="botonBuscarNuestroDispositivoBTLEPulsado"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content" />
+
+</android.widget.LinearLayout>
