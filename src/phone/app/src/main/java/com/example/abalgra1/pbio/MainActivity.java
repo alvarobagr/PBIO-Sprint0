@@ -5,11 +5,13 @@ Descripción: Actividad principal encargada de controlar el escaneo Bluetooth
              Low Energy, interpretar las tramas iBeacon, mostrar los datos
              recibidos del sensor y permitir pruebas con una medición fake.
 Copyright: Copyright (c) 2026 Álvaro Ballester Grau
-Fecha: 04/10/2026
+Fecha: 06/10/2026
 Autor: Álvaro Ballester Grau
 Aportación: Adaptación del código proporcionado por los profesores al proyecto
             PBIO Sprint 0, compatibilidad con versiones actuales de Android,
-            visualización BLE y soporte de lógica fake.
+            gestión de permisos Bluetooth y ubicación, visualización BLE,
+            soporte de lógica fake e interpretación de valores Minor de
+            16 bits con signo.
 -----------------------------------------------------------------------------
 */
 
@@ -45,65 +47,101 @@ import java.util.List;
 
 public class MainActivity extends AppCompatActivity {
 
-    private static final String ETIQUETA_LOG = "PBIO-BTLE";
+    private static final String ETIQUETA_LOG =
+            "PBIO-BTLE";
 
-    private static final int CODIGO_PETICION_PERMISOS = 112233;
+    private static final int CODIGO_PETICION_PERMISOS =
+            112233;
 
     private BluetoothLeScanner elEscanner;
 
 
-    private final ScanCallback callbackDelEscaneo = new ScanCallback() {
-
-        // ---------------------------------------------------------------------
-        // resultado: ScanResult --> onScanResult()
-        //
-        // Procesa cada dispositivo BLE detectado durante el escaneo.
-        // ---------------------------------------------------------------------
-        @Override
-        public void onScanResult(int callbackType, ScanResult resultado) {
-            super.onScanResult(callbackType, resultado);
-
-            mostrarInformacionDispositivoBTLE(resultado);
-        }
+    private final ScanCallback callbackDelEscaneo =
+            new ScanCallback() {
 
 
-        // ---------------------------------------------------------------------
-        // resultados: [ScanResult] --> onBatchScanResults()
-        //
-        // Procesa un conjunto de resultados BLE recibidos simultáneamente.
-        // ---------------------------------------------------------------------
-        @Override
-        public void onBatchScanResults(List<ScanResult> resultados) {
-            super.onBatchScanResults(resultados);
+                // ---------------------------------------------------------------------
+                // resultado: ScanResult --> onScanResult()
+                //
+                // Procesa cada dispositivo BLE detectado durante el escaneo.
+                // ---------------------------------------------------------------------
+                @Override
+                public void onScanResult(
+                        int callbackType,
+                        ScanResult resultado
+                ) {
 
-            for (ScanResult resultado : resultados) {
-                mostrarInformacionDispositivoBTLE(resultado);
-            }
-        }
+                    super.onScanResult(
+                            callbackType,
+                            resultado
+                    );
 
 
-        // ---------------------------------------------------------------------
-        // codigo_error: Z --> onScanFailed()
-        //
-        // Informa mediante Logcat de un error producido durante el escaneo BLE.
-        // ---------------------------------------------------------------------
-        @Override
-        public void onScanFailed(int codigoError) {
-            super.onScanFailed(codigoError);
+                    mostrarInformacionDispositivoBTLE(
+                            resultado
+                    );
+                }
 
-            Log.e(
-                    ETIQUETA_LOG,
-                    "Error durante el escaneo BLE. Código = " + codigoError
-            );
 
-            TextView textoEstado =
-                    findViewById(R.id.textoEstado);
+                // ---------------------------------------------------------------------
+                // resultados: [ScanResult] --> onBatchScanResults()
+                //
+                // Procesa un conjunto de resultados BLE recibidos simultáneamente.
+                // ---------------------------------------------------------------------
+                @Override
+                public void onBatchScanResults(
+                        List<ScanResult> resultados
+                ) {
 
-            textoEstado.setText(
-                    "Estado: Error de escaneo BLE (" + codigoError + ")"
-            );
-        }
-    };
+                    super.onBatchScanResults(
+                            resultados
+                    );
+
+
+                    for (ScanResult resultado : resultados) {
+
+                        mostrarInformacionDispositivoBTLE(
+                                resultado
+                        );
+                    }
+                }
+
+
+                // ---------------------------------------------------------------------
+                // codigo_error: Z --> onScanFailed()
+                //
+                // Informa mediante Logcat de un error producido durante el escaneo BLE.
+                // ---------------------------------------------------------------------
+                @Override
+                public void onScanFailed(
+                        int codigoError
+                ) {
+
+                    super.onScanFailed(
+                            codigoError
+                    );
+
+
+                    Log.e(
+                            ETIQUETA_LOG,
+                            "Error durante el escaneo BLE. Código = "
+                                    + codigoError
+                    );
+
+
+                    TextView textoEstado =
+                            findViewById(
+                                    R.id.textoEstado
+                            );
+
+
+                    textoEstado.setText(
+                            "Estado: Error de escaneo BLE ("
+                                    + codigoError
+                                    + ")"
+                    );
+                }
+            };
 
 
     // -------------------------------------------------------------------------
@@ -113,10 +151,19 @@ public class MainActivity extends AppCompatActivity {
     // la actividad.
     // -------------------------------------------------------------------------
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
+    protected void onCreate(
+            Bundle savedInstanceState
+    ) {
 
-        setContentView(R.layout.activity_main);
+        super.onCreate(
+                savedInstanceState
+        );
+
+
+        setContentView(
+                R.layout.activity_main
+        );
+
 
         inicializarBlueTooth();
     }
@@ -125,8 +172,8 @@ public class MainActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
     // --> inicializarBlueTooth()
     //
-    // Comprueba los permisos necesarios, obtiene el adaptador Bluetooth y
-    // prepara el escáner Bluetooth Low Energy.
+    // Comprueba los permisos de Bluetooth y ubicación necesarios, obtiene
+    // el adaptador Bluetooth y prepara el escáner Bluetooth Low Energy.
     // -------------------------------------------------------------------------
     private void inicializarBlueTooth() {
 
@@ -136,36 +183,101 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
+        // ---------------------------------------------------------------------
+        // ANDROID 12 (API 31) Y POSTERIORES
+        //
+        // Se requieren:
+        //
+        // - BLUETOOTH_SCAN
+        // - BLUETOOTH_CONNECT
+        // - permiso de ubicación
+        //
+        // Para ubicación se aceptará FINE o COARSE.
+        // ---------------------------------------------------------------------
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.BLUETOOTH_SCAN
-            ) != PackageManager.PERMISSION_GRANTED
-                    ||
+            boolean permisoScan =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.BLUETOOTH_SCAN
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoConnect =
                     ActivityCompat.checkSelfPermission(
                             this,
                             Manifest.permission.BLUETOOTH_CONNECT
-                    ) != PackageManager.PERMISSION_GRANTED) {
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoFineLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoCoarseLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoUbicacion =
+                    permisoFineLocation
+                            ||
+                            permisoCoarseLocation;
+
+
+            if (
+                    !permisoScan
+                            ||
+                            !permisoConnect
+                            ||
+                            !permisoUbicacion
+            ) {
+
+                Log.d(
+                        ETIQUETA_LOG,
+                        "Solicitando permisos de dispositivos cercanos y ubicación."
+                );
+
 
                 ActivityCompat.requestPermissions(
                         this,
                         new String[]{
                                 Manifest.permission.BLUETOOTH_SCAN,
-                                Manifest.permission.BLUETOOTH_CONNECT
+                                Manifest.permission.BLUETOOTH_CONNECT,
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
                         },
                         CODIGO_PETICION_PERMISOS
                 );
+
 
                 return;
             }
 
         } else {
 
-            if (ActivityCompat.checkSelfPermission(
-                    this,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-            ) != PackageManager.PERMISSION_GRANTED) {
+            // -----------------------------------------------------------------
+            // ANDROID 11 (API 30) Y ANTERIORES
+            //
+            // Para el escaneo BLE se requiere ACCESS_FINE_LOCATION.
+            // -----------------------------------------------------------------
+            if (
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) != PackageManager.PERMISSION_GRANTED
+            ) {
+
+                Log.d(
+                        ETIQUETA_LOG,
+                        "Solicitando permiso de ubicación."
+                );
+
 
                 ActivityCompat.requestPermissions(
                         this,
@@ -175,13 +287,20 @@ public class MainActivity extends AppCompatActivity {
                         CODIGO_PETICION_PERMISOS
                 );
 
+
                 return;
             }
         }
 
 
+        // ---------------------------------------------------------------------
+        // OBTENER BLUETOOTH MANAGER
+        // ---------------------------------------------------------------------
         BluetoothManager bluetoothManager =
-                (BluetoothManager) getSystemService(Context.BLUETOOTH_SERVICE);
+                (BluetoothManager)
+                        getSystemService(
+                                Context.BLUETOOTH_SERVICE
+                        );
 
 
         if (bluetoothManager == null) {
@@ -191,10 +310,14 @@ public class MainActivity extends AppCompatActivity {
                     "No se ha podido obtener BluetoothManager."
             );
 
+
             return;
         }
 
 
+        // ---------------------------------------------------------------------
+        // OBTENER ADAPTADOR BLUETOOTH
+        // ---------------------------------------------------------------------
         BluetoothAdapter bluetoothAdapter =
                 bluetoothManager.getAdapter();
 
@@ -206,16 +329,21 @@ public class MainActivity extends AppCompatActivity {
                     "El dispositivo no dispone de Bluetooth."
             );
 
+
             Toast.makeText(
                     this,
                     "Este dispositivo no dispone de Bluetooth.",
                     Toast.LENGTH_LONG
             ).show();
 
+
             return;
         }
 
 
+        // ---------------------------------------------------------------------
+        // COMPROBAR SI BLUETOOTH ESTÁ ACTIVADO
+        // ---------------------------------------------------------------------
         if (!bluetoothAdapter.isEnabled()) {
 
             Log.d(
@@ -223,15 +351,25 @@ public class MainActivity extends AppCompatActivity {
                     "Bluetooth desactivado. Se solicita al usuario activarlo."
             );
 
-            Intent activarBluetooth =
-                    new Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE);
 
-            startActivity(activarBluetooth);
+            Intent activarBluetooth =
+                    new Intent(
+                            BluetoothAdapter.ACTION_REQUEST_ENABLE
+                    );
+
+
+            startActivity(
+                    activarBluetooth
+            );
+
 
             return;
         }
 
 
+        // ---------------------------------------------------------------------
+        // OBTENER ESCÁNER BLE
+        // ---------------------------------------------------------------------
         elEscanner =
                 bluetoothAdapter.getBluetoothLeScanner();
 
@@ -243,6 +381,7 @@ public class MainActivity extends AppCompatActivity {
                     "No se ha podido obtener BluetoothLeScanner."
             );
 
+
             return;
         }
 
@@ -250,6 +389,12 @@ public class MainActivity extends AppCompatActivity {
         Log.d(
                 ETIQUETA_LOG,
                 "Bluetooth inicializado correctamente."
+        );
+
+
+        Log.d(
+                ETIQUETA_LOG,
+                "Permisos Bluetooth y ubicación concedidos."
         );
     }
 
@@ -269,7 +414,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         TextView textoEstado =
-                findViewById(R.id.textoEstado);
+                findViewById(
+                        R.id.textoEstado
+                );
+
 
         textoEstado.setText(
                 "Estado: Buscando dispositivos BLE..."
@@ -280,26 +428,63 @@ public class MainActivity extends AppCompatActivity {
 
             inicializarBlueTooth();
 
+
             if (elEscanner == null) {
+
                 return;
             }
         }
 
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                &&
-                ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED) {
+        // ---------------------------------------------------------------------
+        // COMPROBAR PERMISOS EN ANDROID 12+
+        // ---------------------------------------------------------------------
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 
-            return;
+            boolean permisoScan =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.BLUETOOTH_SCAN
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoFineLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoCoarseLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoUbicacion =
+                    permisoFineLocation
+                            ||
+                            permisoCoarseLocation;
+
+
+            if (
+                    !permisoScan
+                            ||
+                            !permisoUbicacion
+            ) {
+
+                inicializarBlueTooth();
+
+                return;
+            }
         }
 
 
         elEscanner.stopScan(
                 callbackDelEscaneo
         );
+
 
         elEscanner.startScan(
                 callbackDelEscaneo
@@ -325,15 +510,21 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(
                 ETIQUETA_LOG,
-                "buscarEsteDispositivoBTLE(): " + dispositivoBuscado
+                "buscarEsteDispositivoBTLE(): "
+                        + dispositivoBuscado
         );
 
 
         TextView textoEstado =
-                findViewById(R.id.textoEstado);
+                findViewById(
+                        R.id.textoEstado
+                );
+
 
         textoEstado.setText(
-                "Estado: Buscando " + dispositivoBuscado + "..."
+                "Estado: Buscando "
+                        + dispositivoBuscado
+                        + "..."
         );
 
 
@@ -341,33 +532,74 @@ public class MainActivity extends AppCompatActivity {
 
             inicializarBlueTooth();
 
+
             if (elEscanner == null) {
+
                 return;
             }
         }
 
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                &&
-                ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED) {
+        // ---------------------------------------------------------------------
+        // COMPROBAR PERMISOS EN ANDROID 12+
+        // ---------------------------------------------------------------------
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 
-            return;
+            boolean permisoScan =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.BLUETOOTH_SCAN
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoFineLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoCoarseLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoUbicacion =
+                    permisoFineLocation
+                            ||
+                            permisoCoarseLocation;
+
+
+            if (
+                    !permisoScan
+                            ||
+                            !permisoUbicacion
+            ) {
+
+                inicializarBlueTooth();
+
+                return;
+            }
         }
 
 
         ScanFilter filtro =
                 new ScanFilter.Builder()
-                        .setDeviceName(dispositivoBuscado)
+                        .setDeviceName(
+                                dispositivoBuscado
+                        )
                         .build();
 
 
         List<ScanFilter> filtros =
                 new ArrayList<>();
 
-        filtros.add(filtro);
+
+        filtros.add(
+                filtro
+        );
 
 
         ScanSettings settings =
@@ -381,6 +613,7 @@ public class MainActivity extends AppCompatActivity {
         elEscanner.stopScan(
                 callbackDelEscaneo
         );
+
 
         elEscanner.startScan(
                 filtros,
@@ -409,6 +642,7 @@ public class MainActivity extends AppCompatActivity {
     ) {
 
         if (resultado == null) {
+
             return;
         }
 
@@ -421,16 +655,24 @@ public class MainActivity extends AppCompatActivity {
                 "(sin nombre)";
 
 
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S
-                ||
-                ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.BLUETOOTH_CONNECT
-                ) == PackageManager.PERMISSION_GRANTED) {
+        if (
+                Build.VERSION.SDK_INT <
+                        Build.VERSION_CODES.S
 
-            if (dispositivo != null
-                    &&
-                    dispositivo.getName() != null) {
+                        ||
+
+                        ActivityCompat.checkSelfPermission(
+                                this,
+                                Manifest.permission.BLUETOOTH_CONNECT
+                        )
+                                == PackageManager.PERMISSION_GRANTED
+        ) {
+
+            if (
+                    dispositivo != null
+                            &&
+                            dispositivo.getName() != null
+            ) {
 
                 nombreDispositivo =
                         dispositivo.getName();
@@ -443,14 +685,18 @@ public class MainActivity extends AppCompatActivity {
                 "---------------------------------------------"
         );
 
-        Log.d(
-                ETIQUETA_LOG,
-                "Dispositivo = " + nombreDispositivo
-        );
 
         Log.d(
                 ETIQUETA_LOG,
-                "RSSI = " + resultado.getRssi()
+                "Dispositivo = "
+                        + nombreDispositivo
+        );
+
+
+        Log.d(
+                ETIQUETA_LOG,
+                "RSSI = "
+                        + resultado.getRssi()
         );
 
 
@@ -464,6 +710,7 @@ public class MainActivity extends AppCompatActivity {
                     ETIQUETA_LOG,
                     "El dispositivo no contiene ScanRecord."
             );
+
 
             return;
         }
@@ -480,19 +727,24 @@ public class MainActivity extends AppCompatActivity {
                     "No se han obtenido bytes del anuncio."
             );
 
+
             return;
         }
 
 
         Log.d(
                 ETIQUETA_LOG,
-                "Longitud trama = " + bytes.length
+                "Longitud trama = "
+                        + bytes.length
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
                 "Trama = "
-                        + Utilidades.bytesToHexString(bytes)
+                        + Utilidades.bytesToHexString(
+                        bytes
+                )
         );
 
 
@@ -503,20 +755,38 @@ public class MainActivity extends AppCompatActivity {
                     "Trama demasiado corta para ser interpretada como iBeacon."
             );
 
+
             return;
         }
 
 
         boolean esIBeacon =
+
                 (bytes[0] & 0xFF) == 0x02
-                        && (bytes[1] & 0xFF) == 0x01
-                        && (bytes[2] & 0xFF) == 0x06
-                        && (bytes[3] & 0xFF) == 0x1A
-                        && (bytes[4] & 0xFF) == 0xFF
-                        && (bytes[5] & 0xFF) == 0x4C
-                        && (bytes[6] & 0xFF) == 0x00
-                        && (bytes[7] & 0xFF) == 0x02
-                        && (bytes[8] & 0xFF) == 0x15;
+
+                        &&
+                        (bytes[1] & 0xFF) == 0x01
+
+                        &&
+                        (bytes[2] & 0xFF) == 0x06
+
+                        &&
+                        (bytes[3] & 0xFF) == 0x1A
+
+                        &&
+                        (bytes[4] & 0xFF) == 0xFF
+
+                        &&
+                        (bytes[5] & 0xFF) == 0x4C
+
+                        &&
+                        (bytes[6] & 0xFF) == 0x00
+
+                        &&
+                        (bytes[7] & 0xFF) == 0x02
+
+                        &&
+                        (bytes[8] & 0xFF) == 0x15;
 
 
         if (!esIBeacon) {
@@ -526,12 +796,15 @@ public class MainActivity extends AppCompatActivity {
                     "La trama no presenta el prefijo iBeacon esperado."
             );
 
+
             return;
         }
 
 
         TramaIBeacon tramaIBeacon =
-                new TramaIBeacon(bytes);
+                new TramaIBeacon(
+                        bytes
+                );
 
 
         String uuid =
@@ -540,28 +813,55 @@ public class MainActivity extends AppCompatActivity {
                 );
 
 
+        /*
+         * Major:
+         *
+         * byte alto -> tipo
+         * byte bajo -> contador
+         */
         int major =
-                Utilidades.bytesToInt(
+                Utilidades.bytesToUInt16(
                         tramaIBeacon.getMajor()
                 );
 
 
+        /*
+         * Minor bruto.
+         *
+         * Ejemplo real:
+         *
+         * 65342
+         */
         int minor =
-                Utilidades.bytesToInt(
+                Utilidades.bytesToUInt16(
                         tramaIBeacon.getMinor()
                 );
 
 
         int tipo =
-                (major >> 8) & 0xFF;
+                (major >> 8)
+                        &
+                        0xFF;
 
 
         int contador =
-                major & 0xFF;
+                major
+                        &
+                        0xFF;
 
 
+        /*
+         * El Arduino almacena el valor de O3 como int16_t.
+         *
+         * Ejemplo:
+         *
+         * Minor bruto = 65342
+         * Valor real  = -194 ppb
+         */
         int valor =
-                minor;
+                Utilidades.bytesToInt16ConSigno(
+                        tramaIBeacon.getMinor()
+                );
 
 
         int rssi =
@@ -574,37 +874,50 @@ public class MainActivity extends AppCompatActivity {
 
         Log.d(
                 ETIQUETA_LOG,
-                "UUID = " + uuid
+                "UUID = "
+                        + uuid
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Major = " + major
+                "Major = "
+                        + major
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Minor = " + minor
+                "Minor bruto = "
+                        + minor
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Tipo = " + tipo
+                "Tipo = "
+                        + tipo
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Contador = " + contador
+                "Contador = "
+                        + contador
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Valor = " + valor
+                "Valor con signo = "
+                        + valor
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "TxPower = " + txPower
+                "TxPower = "
+                        + txPower
         );
 
 
@@ -625,8 +938,8 @@ public class MainActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
     // nombre_dispositivo: Text,
     // uuid: Text,
-    // major: Z,
-    // minor: Z,
+    // major: N,
+    // minor: N,
     // tipo: N,
     // contador: N,
     // valor: Z,
@@ -650,79 +963,140 @@ public class MainActivity extends AppCompatActivity {
             int txPower
     ) {
 
-        runOnUiThread(() -> {
+        runOnUiThread(
+                () -> {
 
-            TextView textoEstado =
-                    findViewById(R.id.textoEstado);
-
-            TextView textoDispositivo =
-                    findViewById(R.id.textoDispositivo);
-
-            TextView textoUUID =
-                    findViewById(R.id.textoUUID);
-
-            TextView textoMajor =
-                    findViewById(R.id.textoMajor);
-
-            TextView textoMinor =
-                    findViewById(R.id.textoMinor);
-
-            TextView textoTipo =
-                    findViewById(R.id.textoTipo);
-
-            TextView textoContador =
-                    findViewById(R.id.textoContador);
-
-            TextView textoValor =
-                    findViewById(R.id.textoValor);
-
-            TextView textoRSSI =
-                    findViewById(R.id.textoRSSI);
-
-            TextView textoTxPower =
-                    findViewById(R.id.textoTxPower);
+                    TextView textoEstado =
+                            findViewById(
+                                    R.id.textoEstado
+                            );
 
 
-            textoEstado.setText(
-                    "Estado: Sensor detectado"
-            );
+                    TextView textoDispositivo =
+                            findViewById(
+                                    R.id.textoDispositivo
+                            );
 
-            textoDispositivo.setText(
-                    "Dispositivo: " + nombreDispositivo
-            );
 
-            textoUUID.setText(
-                    "UUID: " + uuid
-            );
+                    TextView textoUUID =
+                            findViewById(
+                                    R.id.textoUUID
+                            );
 
-            textoMajor.setText(
-                    "Major: " + major
-            );
 
-            textoMinor.setText(
-                    "Minor: " + minor
-            );
+                    TextView textoMajor =
+                            findViewById(
+                                    R.id.textoMajor
+                            );
 
-            textoTipo.setText(
-                    "Tipo: " + tipo
-            );
 
-            textoContador.setText(
-                    "Contador: " + contador
-            );
+                    TextView textoMinor =
+                            findViewById(
+                                    R.id.textoMinor
+                            );
 
-            textoValor.setText(
-                    "Valor: " + valor
-            );
 
-            textoRSSI.setText(
-                    "RSSI: " + rssi + " dBm"
-            );
+                    TextView textoTipo =
+                            findViewById(
+                                    R.id.textoTipo
+                            );
 
-            textoTxPower.setText(
-                    "TxPower: " + txPower + " dBm"
-            );
-        });
+
+                    TextView textoContador =
+                            findViewById(
+                                    R.id.textoContador
+                            );
+
+
+                    TextView textoValor =
+                            findViewById(
+                                    R.id.textoValor
+                            );
+
+
+                    TextView textoRSSI =
+                            findViewById(
+                                    R.id.textoRSSI
+                            );
+
+
+                    TextView textoTxPower =
+                            findViewById(
+                                    R.id.textoTxPower
+                            );
+
+
+                    textoEstado.setText(
+                            "Estado: Sensor detectado"
+                    );
+
+
+                    textoDispositivo.setText(
+                            "Dispositivo: "
+                                    + nombreDispositivo
+                    );
+
+
+                    textoUUID.setText(
+                            "UUID: "
+                                    + uuid
+                    );
+
+
+                    textoMajor.setText(
+                            "Major: "
+                                    + major
+                    );
+
+
+                    textoMinor.setText(
+                            "Minor: "
+                                    + minor
+                    );
+
+
+                    if (tipo == 14) {
+
+                        textoTipo.setText(
+                                "Tipo: O3 (14)"
+                        );
+
+                    } else {
+
+                        textoTipo.setText(
+                                "Tipo: "
+                                        + tipo
+                        );
+                    }
+
+
+                    textoContador.setText(
+                            "Contador: "
+                                    + contador
+                    );
+
+
+                    textoValor.setText(
+                            "Valor: "
+                                    + valor
+                                    + " ppb"
+                    );
+
+
+                    textoRSSI.setText(
+                            "RSSI: "
+                                    + rssi
+                                    + " dBm"
+                    );
+
+
+                    textoTxPower.setText(
+                            "TxPower: "
+                                    + txPower
+                                    + " dBm"
+                    );
+                }
+        );
     }
 
 
@@ -737,71 +1111,117 @@ public class MainActivity extends AppCompatActivity {
     ) {
 
         TextView textoEstado =
-                findViewById(R.id.textoEstado);
+                findViewById(
+                        R.id.textoEstado
+                );
+
 
         TextView textoDispositivo =
-                findViewById(R.id.textoDispositivo);
+                findViewById(
+                        R.id.textoDispositivo
+                );
+
 
         TextView textoUUID =
-                findViewById(R.id.textoUUID);
+                findViewById(
+                        R.id.textoUUID
+                );
+
 
         TextView textoMajor =
-                findViewById(R.id.textoMajor);
+                findViewById(
+                        R.id.textoMajor
+                );
+
 
         TextView textoMinor =
-                findViewById(R.id.textoMinor);
+                findViewById(
+                        R.id.textoMinor
+                );
+
 
         TextView textoTipo =
-                findViewById(R.id.textoTipo);
+                findViewById(
+                        R.id.textoTipo
+                );
+
 
         TextView textoContador =
-                findViewById(R.id.textoContador);
+                findViewById(
+                        R.id.textoContador
+                );
+
 
         TextView textoValor =
-                findViewById(R.id.textoValor);
+                findViewById(
+                        R.id.textoValor
+                );
+
 
         TextView textoRSSI =
-                findViewById(R.id.textoRSSI);
+                findViewById(
+                        R.id.textoRSSI
+                );
+
 
         TextView textoTxPower =
-                findViewById(R.id.textoTxPower);
+                findViewById(
+                        R.id.textoTxPower
+                );
 
 
         textoEstado.setText(
                 "Estado: Medición fake"
         );
 
+
         textoDispositivo.setText(
-                "Dispositivo: " + medicion.getNombreDispositivo()
+                "Dispositivo: "
+                        + medicion.getNombreDispositivo()
         );
 
+
         textoUUID.setText(
-                "UUID: " + medicion.getUuid()
+                "UUID: "
+                        + medicion.getUuid()
         );
+
 
         textoMajor.setText(
                 "Major: No aplica"
         );
 
+
         textoMinor.setText(
                 "Minor: No aplica"
         );
 
+
         textoTipo.setText(
-                "Tipo: " + medicion.getTipo()
+                "Tipo: "
+                        + medicion.getTipo()
         );
+
 
         textoContador.setText(
-                "Contador: " + medicion.getContador()
+                "Contador: "
+                        + medicion.getContador()
         );
+
 
         textoValor.setText(
-                "Valor: " + medicion.getValor()
+                "Valor: "
+                        + medicion.getValor()
+                        + " ppb"
         );
 
+
         textoRSSI.setText(
-                "RSSI: " + medicion.getRssi() + " dBm"
+                "RSSI: "
+                        + medicion.getRssi()
+                        + " dBm"
         );
+
 
         textoTxPower.setText(
                 "TxPower: No aplica"
@@ -813,29 +1233,39 @@ public class MainActivity extends AppCompatActivity {
                 "Medición fake cargada:"
         );
 
-        Log.d(
-                ETIQUETA_LOG,
-                "UUID = " + medicion.getUuid()
-        );
 
         Log.d(
                 ETIQUETA_LOG,
-                "Tipo = " + medicion.getTipo()
+                "UUID = "
+                        + medicion.getUuid()
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Valor = " + medicion.getValor()
+                "Tipo = "
+                        + medicion.getTipo()
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "Contador = " + medicion.getContador()
+                "Valor = "
+                        + medicion.getValor()
         );
+
 
         Log.d(
                 ETIQUETA_LOG,
-                "RSSI = " + medicion.getRssi()
+                "Contador = "
+                        + medicion.getContador()
+        );
+
+
+        Log.d(
+                ETIQUETA_LOG,
+                "RSSI = "
+                        + medicion.getRssi()
         );
     }
 
@@ -854,16 +1284,23 @@ public class MainActivity extends AppCompatActivity {
 
 
         if (elEscanner == null) {
+
             return;
         }
 
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-                &&
-                ActivityCompat.checkSelfPermission(
-                        this,
-                        Manifest.permission.BLUETOOTH_SCAN
-                ) != PackageManager.PERMISSION_GRANTED) {
+        if (
+                Build.VERSION.SDK_INT >=
+                        Build.VERSION_CODES.S
+
+                        &&
+
+                        ActivityCompat.checkSelfPermission(
+                                this,
+                                Manifest.permission.BLUETOOTH_SCAN
+                        )
+                                != PackageManager.PERMISSION_GRANTED
+        ) {
 
             return;
         }
@@ -881,7 +1318,10 @@ public class MainActivity extends AppCompatActivity {
 
 
         TextView textoEstado =
-                findViewById(R.id.textoEstado);
+                findViewById(
+                        R.id.textoEstado
+                );
+
 
         textoEstado.setText(
                 "Estado: Escaneo detenido"
@@ -935,8 +1375,7 @@ public class MainActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
     // --> botonCargarMedicionFakePulsado()
     //
-    // Solicita una medición a la lógica fake y la muestra en la interfaz
-    // gráfica.
+    // Solicita una medición a la lógica fake y la muestra en la interfaz.
     // -------------------------------------------------------------------------
     public void botonCargarMedicionFakePulsado(
             View view
@@ -944,6 +1383,7 @@ public class MainActivity extends AppCompatActivity {
 
         Medicion medicion =
                 LogicaFakeTelefono.crearMedicionFake();
+
 
         mostrarMedicionFake(
                 medicion
@@ -954,8 +1394,15 @@ public class MainActivity extends AppCompatActivity {
     // -------------------------------------------------------------------------
     // request_code: N, resultados: [Z] --> onRequestPermissionsResult()
     //
-    // Procesa la respuesta del usuario a la solicitud de permisos Bluetooth
-    // y continúa la inicialización cuando han sido concedidos.
+    // Procesa la respuesta del usuario a los permisos Bluetooth y ubicación.
+    //
+    // En Android 12+ se consideran válidos:
+    //
+    // - BLUETOOTH_SCAN concedido
+    // - BLUETOOTH_CONNECT concedido
+    // - ACCESS_FINE_LOCATION o ACCESS_COARSE_LOCATION concedido
+    //
+    // En Android 11 y anteriores se requiere ACCESS_FINE_LOCATION.
     // -------------------------------------------------------------------------
     @Override
     public void onRequestPermissionsResult(
@@ -971,32 +1418,84 @@ public class MainActivity extends AppCompatActivity {
         );
 
 
-        if (requestCode != CODIGO_PETICION_PERMISOS) {
+        if (
+                requestCode
+                        != CODIGO_PETICION_PERMISOS
+        ) {
+
             return;
         }
 
 
-        boolean todosConcedidos =
-                grantResults.length > 0;
+        boolean permisosCorrectos;
 
 
-        for (int resultado : grantResults) {
+        // ---------------------------------------------------------------------
+        // ANDROID 12+
+        // ---------------------------------------------------------------------
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
 
-            if (resultado != PackageManager.PERMISSION_GRANTED) {
+            boolean permisoScan =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.BLUETOOTH_SCAN
+                    ) == PackageManager.PERMISSION_GRANTED;
 
-                todosConcedidos = false;
 
-                break;
-            }
+            boolean permisoConnect =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.BLUETOOTH_CONNECT
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoFineLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoCoarseLocation =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_COARSE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
+
+
+            boolean permisoUbicacion =
+                    permisoFineLocation
+                            ||
+                            permisoCoarseLocation;
+
+
+            permisosCorrectos =
+                    permisoScan
+                            &&
+                            permisoConnect
+                            &&
+                            permisoUbicacion;
+
+        } else {
+
+            // -----------------------------------------------------------------
+            // ANDROID 11 Y ANTERIORES
+            // -----------------------------------------------------------------
+            permisosCorrectos =
+                    ActivityCompat.checkSelfPermission(
+                            this,
+                            Manifest.permission.ACCESS_FINE_LOCATION
+                    ) == PackageManager.PERMISSION_GRANTED;
         }
 
 
-        if (todosConcedidos) {
+        if (permisosCorrectos) {
 
             Log.d(
                     ETIQUETA_LOG,
-                    "Permisos Bluetooth concedidos."
+                    "Permisos Bluetooth y ubicación concedidos."
             );
+
 
             inicializarBlueTooth();
 
@@ -1004,12 +1503,13 @@ public class MainActivity extends AppCompatActivity {
 
             Log.e(
                     ETIQUETA_LOG,
-                    "No se han concedido los permisos necesarios."
+                    "No se han concedido todos los permisos necesarios."
             );
+
 
             Toast.makeText(
                     this,
-                    "Son necesarios los permisos Bluetooth para buscar el sensor.",
+                    "Son necesarios los permisos de dispositivos cercanos y ubicación para buscar el sensor.",
                     Toast.LENGTH_LONG
             ).show();
         }

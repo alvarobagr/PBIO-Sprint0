@@ -2,14 +2,58 @@
 
 ## Component Design
 
+### Objetivo del componente
+
+El componente `phone` corresponde a la aplicación Android encargada de:
+
+```text
+recibir anuncios BLE
+        |
+        v
+identificar una trama iBeacon válida
+        |
+        v
+separar UUID / Major / Minor / TxPower
+        |
+        v
+interpretar tipo / contador / valor
+        |
+        v
+mostrar la información en pantalla
+        |
+        v
+generar una Medicion
+        |
+        v
+cliente REST (posteriormente)
+```
+
+La aplicación también incorpora una lógica fake para poder probar el sistema
+sin depender de la recepción física del sensor.
+
+---
+
 ### Tipos lógicos
 
 ```text
 UUID = [N]_16
+
 PrefijoIBeacon = [N]_9
+
 Major = [N]_2
+
 Minor = [N]_2
+
 TramaBLE = [N]
+
+Medicion=(
+    uuid: Text,
+    nombre_dispositivo: Text,
+    tipo: Text,
+    valor: Z,
+    contador: N,
+    rssi: Z
+)
 ```
 
 ---
@@ -75,6 +119,10 @@ N             <-- getiBeaconLength() <--
                  ------------------------------------------
 ```
 
+La clase únicamente representa y separa campos.
+
+No interpreta el significado lógico de `major` o `minor`.
+
 ---
 
 ### Clase `Utilidades`
@@ -83,60 +131,176 @@ Responsabilidad:
 
 Proporcionar conversiones auxiliares entre texto, bytes, números y UUID.
 
-La clase no mantiene estado. Sus operaciones son estáticas.
+La clase no mantiene estado.
+
+Todas sus operaciones son estáticas.
 
 ```text
                  --------- Utilidades ---------------------
 
-texto: Text  --> stringToBytes() --> [N]              --x
+texto: Text
+              --> stringToBytes() --> [N]                 --x
 
 
-uuid: Text   --> stringToUUID() --> UUID              --x
+uuid: Text
+              --> stringToUUID() --> UUID                 --x
 
 
-uuid: UUID   --> uuidToString() --> Text              --x
+uuid: UUID
+              --> uuidToString() --> Text                 --x
 
 
-uuid: UUID   --> uuidToHexString() --> Text           --x
+uuid: UUID
+              --> uuidToHexString() --> Text              --x
 
 
-bytes: [N]   --> bytesToString() --> Text             --x
+bytes: [N]
+              --> bytesToString() --> Text                --x
 
 
 mas_significativos: Z,
 menos_significativos: Z
-              --> dosLongToBytes() --> [N]_16         --x
+              --> dosLongToBytes() --> [N]_16             --x
 
 
-bytes: [N]   --> bytesToInt() --> Z                   --x
+bytes: [N]
+              --> bytesToInt() --> Z                      --x
 
 
-bytes: [N]   --> bytesToLong() --> Z                  --x
+bytes: [N]
+              --> bytesToLong() --> Z                     --x
 
 
-bytes: [N]   --> bytesToIntOK() --> Z                 --x
+bytes: [N]
+              --> bytesToIntOK() --> Z                    --x
 
 
-bytes: [N]   --> bytesToHexString() --> Text          --x
+bytes: [N]_2
+              --> bytesToUInt16() --> N                   --x
+
+
+bytes: [N]_2
+              --> bytesToInt16ConSigno() --> Z            --x
+
+
+bytes: [N]
+              --> bytesToHexString() --> Text             --x
 
                  ------------------------------------------
 ```
 
 ---
 
-### Decodificación utilizada en Sprint 0
+### bytesToUInt16()
+
+```text
+bytes: [N]_2 --> bytesToUInt16() --> N
+```
+
+Responsabilidad:
+
+Interpretar exactamente dos bytes como un entero de 16 bits sin signo.
+
+Esta conversión se utiliza para obtener la representación bruta de campos
+iBeacon como `major` y `minor`.
+
+Ejemplos:
+
+```text
+01 4D --> 333
+
+FF 3E --> 65342
+```
+
+---
+
+### bytesToInt16ConSigno()
+
+```text
+bytes: [N]_2 --> bytesToInt16ConSigno() --> Z
+```
+
+Responsabilidad:
+
+Interpretar exactamente dos bytes como un entero de 16 bits con signo.
+
+Esta operación se utiliza para recuperar correctamente la concentración de O3
+almacenada por Arduino dentro del campo `minor`.
+
+Ejemplos:
+
+```text
+01 4D --> 333
+
+00 4B --> 75
+
+FF 3E --> -194
+```
+
+Los mismos 16 bits:
+
+```text
+FF 3E
+```
+
+pueden representar:
+
+```text
+65342
+```
+
+si se interpretan sin signo, o:
+
+```text
+-194
+```
+
+si se interpretan como `int16`.
+
+---
+
+### Decodificación iBeacon utilizada en Sprint 0
 
 La trama iBeacon contiene:
 
 ```text
-Prefijo        9 bytes
-UUID          16 bytes
-Major          2 bytes
-Minor          2 bytes
-TxPower        1 byte
+Prefijo         9 bytes
+UUID           16 bytes
+Major           2 bytes
+Minor           2 bytes
+TxPower         1 byte
 ```
 
-La interpretación utilizada actualmente para el campo `major` es:
+El prefijo esperado es:
+
+```text
+02 01 06 1A FF 4C 00 02 15
+```
+
+La aplicación comprueba este prefijo antes de interpretar los datos como un
+iBeacon válido.
+
+---
+
+### UUID
+
+El UUID utilizado por el proyecto es:
+
+```text
+EPSG-GTI-PROY-3A
+```
+
+Los 16 bytes ASCII correspondientes son:
+
+```text
+45 50 53 47 2D 47 54 49 2D 50 52 4F 59 2D 33 41
+```
+
+---
+
+### Codificación del campo Major
+
+El campo `major` contiene dos valores:
 
 ```text
 +----------------+----------------+
@@ -145,24 +309,300 @@ La interpretación utilizada actualmente para el campo `major` es:
 +----------------+----------------+
 ```
 
-Codificación utilizada en el código proporcionado:
+La codificación utilizada es:
+
+```text
+major = (tipo << 8) | contador
+```
+
+Los códigos heredados del proyecto son:
 
 ```text
 11 = CO2
 12 = TEMPERATURA
 13 = RUIDO
+14 = O3
 ```
 
-El byte más significativo de `major` representa el tipo de medición.
+Para el sensor actual:
 
-El byte menos significativo de `major` representa el contador.
+```text
+tipo = 14
+```
 
-El campo `minor` representa el valor de la medición.
+Android obtiene el tipo mediante:
 
-Esta interpretación se mantiene inicialmente por fidelidad al código
-proporcionado. Durante la prueba con la placa real se mostrarán también
-directamente `major` y `minor` para comprobar la codificación utilizada
-realmente por el emisor del Sprint 0.
+```text
+tipo = major[15..8]
+```
+
+y el contador mediante:
+
+```text
+contador = major[7..0]
+```
+
+Ejemplo observado:
+
+```text
+Major = 3647
+
+tipo = 14
+contador = 63
+```
+
+porque:
+
+```text
+(14 << 8) + 63 = 3647
+```
+
+---
+
+### Codificación del campo Minor
+
+El campo `minor` contiene la concentración de O3 expresada en ppb.
+
+Arduino obtiene este valor mediante:
+
+```text
+valor = round(ppm * 1000)
+```
+
+y lo codifica utilizando un entero de 16 bits con signo.
+
+Por tanto:
+
+```text
+0.333 ppm  --> 333 ppb
+0.075 ppm  --> 75 ppb
+-0.194 ppm --> -194 ppb
+```
+
+El campo iBeacon transporta los 16 bits sin indicar explícitamente si deben
+interpretarse con o sin signo.
+
+Por ese motivo Android mantiene dos representaciones:
+
+```text
+minor_bruto: N
+valor: Z
+```
+
+Ejemplo real observado:
+
+```text
+Minor bruto = 65342
+
+Valor = -194 ppb
+```
+
+Ambos representan los mismos 16 bits:
+
+```text
+0xFF3E
+```
+
+---
+
+### Contrato Arduino - Android
+
+La comunicación entre ambos componentes queda definida como:
+
+```text
+Nombre BLE = "GTI-3A"
+
+UUID = "EPSG-GTI-PROY-3A"
+
+tipo O3 = 14
+```
+
+El campo `major` contiene:
+
+```text
+major[15..8] = tipo
+major[7..0]  = contador
+```
+
+El campo `minor` contiene:
+
+```text
+valor O3 en ppb codificado como int16
+```
+
+Ejemplo:
+
+```text
+Arduino:
+
+tipo = 14
+contador = 63
+valor = -194 ppb
+```
+
+produce:
+
+```text
+Major = 3647
+Minor bruto = 65342
+```
+
+y Android reconstruye:
+
+```text
+tipo = 14
+contador = 63
+valor = -194 ppb
+```
+
+---
+
+### Clase `Medicion`
+
+Responsabilidad:
+
+Representar una medición ya interpretada por el teléfono y preparada para ser
+utilizada por las siguientes capas del sistema.
+
+```text
+                 ------------ Medicion -----------------
+                 |
+                 | uuid: Text
+                 | nombre_dispositivo: Text
+                 | tipo: Text
+                 | valor: Z
+                 | contador: N
+                 | rssi: Z
+                 |
+                 |
+uuid: Text,
+nombre_dispositivo: Text,
+tipo: Text,
+valor: Z,
+contador: N,
+rssi: Z
+              --> Medicion() -->
+                 |
+                 |
+Text          <-- getUuid() <--
+                 |
+                 |
+Text          <-- getNombreDispositivo() <--
+                 |
+                 |
+Text          <-- getTipo() <--
+                 |
+                 |
+Z             <-- getValor() <--
+                 |
+                 |
+N             <-- getContador() <--
+                 |
+                 |
+Z             <-- getRssi() <--
+                 |
+                 ---------------------------------------
+```
+
+La medición no contiene datos propios de la codificación BLE como:
+
+```text
+Major
+Minor
+TxPower
+```
+
+Estos campos pertenecen a la recepción Bluetooth.
+
+Las capas posteriores del sistema reciben únicamente la información lógica ya
+interpretada.
+
+---
+
+### Clase `LogicaFakeTelefono`
+
+Responsabilidad:
+
+Generar una medición ficticia con el mismo formato lógico que utilizarán las
+mediciones reales obtenidas mediante Bluetooth.
+
+La clase no mantiene estado.
+
+```text
+                 -------- LogicaFakeTelefono --------
+
+                 | --> crearMedicionFake() --> Medicion --x
+
+                 -------------------------------------
+```
+
+---
+
+### crearMedicionFake()
+
+```text
+crearMedicionFake() --> Medicion
+```
+
+Responsabilidad:
+
+Crear una medición ficticia conocida y reproducible.
+
+La medición utilizada es:
+
+```text
+uuid = "EPSG-GTI-PROY-3A"
+
+nombre_dispositivo = "GTI-3A"
+
+tipo = "O3"
+
+valor = 333
+
+contador = 30
+
+rssi = -68
+```
+
+La lógica fake no realiza:
+
+```text
+Bluetooth
+REST
+base de datos
+```
+
+Su única responsabilidad es generar una `Medicion`.
+
+---
+
+### Flujo de la lógica fake
+
+```text
+LogicaFakeTelefono
+        |
+        v
+crearMedicionFake()
+        |
+        v
+Medicion
+        |
+        +------------------> interfaz Android
+        |
+        +------------------> cliente REST
+                              posteriormente
+```
+
+La medición fake utiliza la misma estructura que utilizará una medición
+procedente del sensor real:
+
+```text
+Sensor BLE ------\
+                  \
+                   --> Medicion --> REST
+                  /
+Lógica Fake -----/
+```
 
 ---
 
@@ -170,12 +610,26 @@ realmente por el emisor del Sprint 0.
 
 Responsabilidad:
 
-Coordinar la inicialización de Bluetooth, el escaneo BLE, la recepción de
-resultados, la interpretación de la trama y la actualización de la interfaz
-gráfica.
+Coordinar:
 
-La clase utiliza `TramaIBeacon` y `Utilidades` para interpretar la información
-recibida.
+```text
+inicialización Bluetooth
+escaneo BLE
+recepción de resultados
+validación básica de iBeacon
+interpretación de la trama
+actualización de la interfaz gráfica
+ejecución de la lógica fake desde la interfaz
+```
+
+La clase utiliza:
+
+```text
+TramaIBeacon
+Utilidades
+Medicion
+LogicaFakeTelefono
+```
 
 No contiene lógica de backend ni acceso a base de datos.
 
@@ -205,6 +659,22 @@ dispositivo_buscado: Text
                  | --> inicializarBlueTooth()
                  |
                  |
+nombre_dispositivo: Text,
+uuid: Text,
+major: N,
+minor: N,
+tipo: N,
+contador: N,
+valor: Z,
+rssi: Z,
+tx_power: Z
+              --> actualizarDatosSensor()
+                 |
+                 |
+medicion: Medicion
+              --> mostrarMedicionFake()
+                 |
+                 |
                  | --> botonBuscarDispositivosBTLEPulsado()
                  |
                  |
@@ -212,6 +682,9 @@ dispositivo_buscado: Text
                  |
                  |
                  | --> botonDetenerBusquedaDispositivosBTLEPulsado()
+                 |
+                 |
+                 | --> botonCargarMedicionFakePulsado()
                  |
                  |
                  | --> onCreate()
@@ -222,26 +695,12 @@ resultados: [Z]
               --> onRequestPermissionsResult()
                  |
                  |
-nombre_dispositivo: Text,
-uuid: Text,
-major: Z,
-minor: Z,
-tipo: N,
-contador: N,
-valor: Z,
-rssi: Z,
-tx_power: Z
-              --> actualizarDatosSensor()
-                 |
-                 |
                  ------------------------------------------------
 ```
 
 ---
 
-### Operaciones de `MainActivity`
-
-#### Inicialización de Bluetooth
+### inicializarBlueTooth()
 
 ```text
 inicializarBlueTooth()
@@ -249,12 +708,25 @@ inicializarBlueTooth()
 
 Responsabilidad:
 
-Inicializar el sistema Bluetooth del teléfono, obtener el escáner BLE y
-gestionar los permisos necesarios para poder realizar el escaneo.
+Inicializar el sistema Bluetooth del teléfono, comprobar permisos y obtener el
+escáner BLE.
+
+Para Android 12 y posteriores se utilizan:
+
+```text
+BLUETOOTH_SCAN
+
+BLUETOOTH_CONNECT
+```
+
+Para versiones anteriores se utiliza el permiso de localización requerido por
+el escaneo BLE.
+
+Si Bluetooth está desactivado, la aplicación solicita al usuario que lo active.
 
 ---
 
-#### Buscar todos los dispositivos BLE
+### buscarTodosLosDispositivosBTLE()
 
 ```text
 buscarTodosLosDispositivosBTLE()
@@ -262,12 +734,17 @@ buscarTodosLosDispositivosBTLE()
 
 Responsabilidad:
 
-Iniciar un escaneo Bluetooth Low Energy sin filtrar y procesar los dispositivos
-detectados mediante un `ScanCallback`.
+Iniciar un escaneo BLE sin filtros.
+
+Los resultados obtenidos se procesan mediante:
+
+```text
+callbackDelEscaneo
+```
 
 ---
 
-#### Buscar un dispositivo BLE concreto
+### buscarEsteDispositivoBTLE()
 
 ```text
 dispositivo_buscado: Text
@@ -277,12 +754,9 @@ buscarEsteDispositivoBTLE()
 
 Responsabilidad:
 
-Iniciar un escaneo BLE para localizar el dispositivo cuyo nombre se proporciona.
+Iniciar un escaneo BLE utilizando un filtro de nombre.
 
-El diseño original proporcionado por los profesores utiliza un `ScanFilter`
-basado en el nombre del dispositivo.
-
-En el Sprint 0 el dispositivo buscado es:
+El dispositivo utilizado en Sprint 0 es:
 
 ```text
 GTI-3A
@@ -290,7 +764,7 @@ GTI-3A
 
 ---
 
-#### Mostrar información de un dispositivo BLE
+### mostrarInformacionDispositivoBTLE()
 
 ```text
 resultado: ScanResult
@@ -300,43 +774,140 @@ mostrarInformacionDispositivoBTLE()
 
 Responsabilidad:
 
-Obtener la información del resultado BLE detectado, incluyendo:
+Procesar un resultado BLE recibido.
+
+El flujo es:
 
 ```text
-Nombre del dispositivo
-RSSI
-Bytes del anuncio
-UUID
-Major
-Minor
-Tipo
-Contador
-Valor
-TxPower
-```
-
-Cuando la trama recibida presenta el formato iBeacon esperado, se utilizan
-`TramaIBeacon` y `Utilidades` para separar e interpretar sus campos.
-
-Después de interpretar la trama, se llama a:
-
-```text
+ScanResult
+    |
+    v
+obtener dispositivo
+    |
+    v
+obtener nombre
+    |
+    v
+obtener RSSI
+    |
+    v
+obtener ScanRecord
+    |
+    v
+obtener bytes
+    |
+    v
+comprobar longitud >= 30
+    |
+    v
+comprobar prefijo iBeacon
+    |
+    v
+TramaIBeacon
+    |
+    +--> UUID
+    |
+    +--> Major
+    |
+    +--> Minor
+    |
+    +--> TxPower
+    |
+    v
+Utilidades
+    |
+    +--> Major sin signo
+    |
+    +--> Minor bruto sin signo
+    |
+    +--> Minor como int16 con signo
+    |
+    v
+tipo / contador / valor
+    |
+    v
 actualizarDatosSensor()
 ```
 
-para mostrar los valores recibidos en la interfaz gráfica.
+La operación no almacena datos.
 
-Esta operación no almacena datos ni realiza comunicaciones REST.
+No realiza comunicaciones REST.
 
 ---
 
-#### Actualizar datos del sensor
+### Interpretación de Major en Android
+
+Android obtiene `major` mediante:
+
+```text
+bytesToUInt16()
+```
+
+Posteriormente:
+
+```text
+tipo = (major >> 8) & 0xFF
+
+contador = major & 0xFF
+```
+
+Para el sensor O3:
+
+```text
+tipo = 14
+```
+
+---
+
+### Interpretación de Minor en Android
+
+Android mantiene:
+
+```text
+minor = representación bruta sin signo
+```
+
+mediante:
+
+```text
+bytesToUInt16()
+```
+
+y obtiene el valor lógico mediante:
+
+```text
+bytesToInt16ConSigno()
+```
+
+Por tanto:
+
+```text
+0x014D
+    |
+    +--> Minor = 333
+    |
+    +--> Valor = 333
+```
+
+mientras que:
+
+```text
+0xFF3E
+    |
+    +--> Minor = 65342
+    |
+    +--> Valor = -194
+```
+
+---
+
+### actualizarDatosSensor()
 
 ```text
 nombre_dispositivo: Text,
 uuid: Text,
-major: Z,
-minor: Z,
+major: N,
+minor: N,
 tipo: N,
 contador: N,
 valor: Z,
@@ -348,10 +919,46 @@ actualizarDatosSensor()
 
 Responsabilidad:
 
-Actualizar la interfaz gráfica con los datos correspondientes al último anuncio
+Mostrar en la interfaz gráfica la información correspondiente al último anuncio
 BLE válido recibido.
 
-La función únicamente presenta información.
+La interfaz muestra:
+
+```text
+Estado
+
+Dispositivo
+
+UUID
+
+Major
+
+Minor
+
+Tipo
+
+Contador
+
+Valor
+
+RSSI
+
+TxPower
+```
+
+Para O3 se presenta:
+
+```text
+Tipo: O3 (14)
+```
+
+y el valor incluye su unidad:
+
+```text
+Valor: -194 ppb
+```
+
+La operación únicamente presenta información.
 
 No modifica la medición.
 
@@ -361,7 +968,7 @@ No realiza comunicaciones REST.
 
 ---
 
-#### Detener búsqueda BLE
+### detenerBusquedaDispositivosBTLE()
 
 ```text
 detenerBusquedaDispositivosBTLE()
@@ -370,11 +977,11 @@ detenerBusquedaDispositivosBTLE()
 Responsabilidad:
 
 Detener el escaneo BLE activo utilizando el mismo `ScanCallback` empleado para
-iniciar la búsqueda.
+iniciarlo.
 
 ---
 
-#### Acciones de la interfaz
+### botonBuscarDispositivosBTLEPulsado()
 
 ```text
 botonBuscarDispositivosBTLEPulsado()
@@ -382,335 +989,60 @@ botonBuscarDispositivosBTLEPulsado()
 
 Responsabilidad:
 
-Iniciar la búsqueda de todos los dispositivos BLE.
+Solicitar el inicio de un escaneo BLE sin filtro.
 
-```text
-botonBuscarNuestroDispositivoBTLEPulsado()
-```
-
-Responsabilidad:
-
-Iniciar la búsqueda del dispositivo BLE utilizado por el proyecto.
-
-```text
-botonDetenerBusquedaDispositivosBTLEPulsado()
-```
-
-Responsabilidad:
-
-Detener la búsqueda BLE activa.
-
-Los parámetros `View` utilizados por Android para gestionar los eventos de los
-botones son detalles de implementación del framework y no forman parte de la
-firma lógica.
-
----
-
-#### Creación de la actividad
-
-```text
-onCreate()
-```
-
-Responsabilidad:
-
-Inicializar la pantalla principal y comenzar la inicialización Bluetooth cuando
-se crea la actividad.
-
-El objeto `Bundle` recibido por Android se considera un detalle del framework
+El parámetro `View` utilizado por Android se considera un detalle del framework
 y no forma parte de la firma lógica.
 
 ---
 
-#### Resultado de petición de permisos
+### botonBuscarNuestroDispositivoBTLEPulsado()
 
 ```text
-request_code: N,
-resultados: [Z]
-    -->
-onRequestPermissionsResult()
-```
-
-Responsabilidad:
-
-Procesar el resultado de la solicitud de permisos necesaria para utilizar
-Bluetooth.
-
-Si todos los permisos necesarios han sido concedidos, se continúa la
-inicialización Bluetooth.
-
-Los parámetros adicionales proporcionados por Android que únicamente forman
-parte del mecanismo del framework se omiten del diseño lógico.
-
----
-
-### Interfaz gráfica Android
-
-La interfaz mantiene los tres controles principales presentes en el ejemplo
-proporcionado por los profesores:
-
-```text
-Buscar Dispositivos BTLE
-        |
-        v
-botonBuscarDispositivosBTLEPulsado()
-
-
-Detener búsqueda Dispositivos BTLE
-        |
-        v
-botonDetenerBusquedaDispositivosBTLEPulsado()
-
-
-Buscar nuestro dispositivo BTLE
-        |
-        v
 botonBuscarNuestroDispositivoBTLEPulsado()
 ```
 
-A estos controles se añade una zona de visualización destinada a mostrar el
-último anuncio BLE válido recibido.
-
-La pantalla mostrará:
-
-```text
-Estado
-Nombre del dispositivo
-UUID
-Major
-Minor
-Tipo
-Contador
-Valor
-RSSI
-TxPower
-```
-
-Antes de recibir una trama válida se mostrará un estado equivalente a:
-
-```text
-Estado: Esperando sensor...
-```
-
-Después de recibir una trama válida, la interfaz se actualizará con los datos
-obtenidos.
-
-Un ejemplo conceptual de la pantalla es:
-
-```text
-------------------------------------------------
-PBIO - Sensor BLE
-
-[ Buscar Dispositivos BTLE ]
-
-[ Detener búsqueda Dispositivos BTLE ]
-
-[ Buscar nuestro dispositivo BTLE ]
-
-
-Estado: Sensor detectado
-
-Dispositivo: GTI-3A
-UUID: EPSG-GTI-PROY-3A
-
-Major: 30
-Minor: 333
-
-Tipo: ...
-Contador: ...
-Valor: 333
-
-RSSI: -68 dBm
-TxPower: -73 dBm
-------------------------------------------------
-```
-
-Los valores del ejemplo anterior son únicamente ilustrativos.
-
-Los valores mostrados realmente procederán del anuncio BLE recibido.
-
----
-
-### Flujo de visualización
-
-```text
-ScanResult
-    |
-    v
-mostrarInformacionDispositivoBTLE()
-    |
-    +--> obtener RSSI
-    |
-    +--> obtener ScanRecord
-    |
-    +--> obtener bytes
-    |
-    +--> comprobar longitud
-    |
-    +--> comprobar prefijo iBeacon
-    |
-    +--> TramaIBeacon
-    |
-    +--> Utilidades
-    |
-    v
-UUID
-Major
-Minor
-Tipo
-Contador
-Valor
-RSSI
-TxPower
-    |
-    v
-actualizarDatosSensor()
-    |
-    v
-Interfaz gráfica
-```
-
-Los mismos datos se podrán mantener también en Logcat durante el desarrollo
-para facilitar la depuración.
-
-Los campos `Major` y `Minor` permanecerán visibles durante Sprint 0 porque
-permiten comprobar directamente la información enviada por la placa.
-
-Esto es especialmente importante mientras no se haya validado con un teléfono
-Android físico la codificación exacta del anuncio BLE generado por el emisor.
-
-### Tipo `Medicion`
-
-Representa una medición ya interpretada por el teléfono y preparada para ser
-utilizada por las siguientes capas del sistema.
-
-```text
-Medicion=(
-    uuid: Text,
-    nombre_dispositivo: Text,
-    tipo: Text,
-    valor: Z,
-    contador: N,
-    rssi: Z
-)
-```
-
-La medición no contiene información propia del protocolo BLE como `major`,
-`minor` o `txPower`.
-
-Esos datos pertenecen a la recepción Bluetooth y se transforman antes de pasar
-la medición a otras capas.
-
----
-
-### Clase `LogicaFakeTelefono`
-
 Responsabilidad:
 
-Generar una medición ficticia con el mismo formato lógico que utilizarán las
-mediciones reales obtenidas mediante Bluetooth.
-
-La lógica fake permite desarrollar y probar el resto del sistema sin depender
-de disponer físicamente de la placa ni de un teléfono Android con BLE.
+Solicitar la búsqueda del dispositivo:
 
 ```text
-                 -------- LogicaFakeTelefono --------
-
-                 | --> crearMedicionFake() --> Medicion --x
-
-                 -------------------------------------
+GTI-3A
 ```
 
-#### Crear medición ficticia
+El parámetro `View` utilizado por Android se omite del diseño lógico.
+
+---
+
+### botonDetenerBusquedaDispositivosBTLEPulsado()
 
 ```text
-crearMedicionFake() --> Medicion
+botonDetenerBusquedaDispositivosBTLEPulsado()
 ```
 
 Responsabilidad:
 
-Crear y devolver una medición ficticia válida para Sprint 0.
-
-La medición utilizada inicialmente será:
-
-```text
-uuid = "EPSG-GTI-PROY-3A"
-nombre_dispositivo = "GTI-3A"
-tipo = "O3"
-valor = 333
-contador = 30
-rssi = -68
-```
-
-Estos valores tienen finalidad de prueba.
-
-La lógica fake no realiza comunicaciones Bluetooth, REST ni acceso a base de
-datos.
-
-Su única responsabilidad es proporcionar una medición conocida y reproducible.
+Solicitar la detención del escaneo BLE activo.
 
 ---
 
-### Flujo de la lógica fake
+### botonCargarMedicionFakePulsado()
 
 ```text
-LogicaFakeTelefono
-        |
-        v
-crearMedicionFake()
-        |
-        v
-Medicion
-        |
-        +------------------> interfaz Android
-        |
-        +------------------> cliente REST (posteriormente)
+botonCargarMedicionFakePulsado()
 ```
 
-La misma estructura `Medicion` se utilizará posteriormente para representar
-los datos obtenidos del sensor real.
+Responsabilidad:
 
-De esta forma, el origen de los datos puede cambiar sin modificar las capas
-posteriores:
+Solicitar una medición a:
 
 ```text
-Sensor BLE ------\
-                  \
-                   --> Medicion --> REST
-                  /
-Lógica Fake -----/
-```
----
-
-### Tests actuales
-
-Existe un test unitario para comprobar la separación e interpretación básica
-de una trama iBeacon:
-
-```text
-comprobarTramaIBeacon()
+LogicaFakeTelefono.crearMedicionFake()
 ```
 
-El test utiliza una trama ficticia y comprueba:
+y mostrarla en la interfaz.
 
-- UUID.
-- Major.
-- Minor.
-- TxPower.
-- Tipo de medición extraído de Major.
-- Contador extraído de Major.
-- Valor obtenido de Minor.
-
-Los tests permiten comprobar la lógica de interpretación sin necesitar
-físicamente la placa BLE.
-
-La recepción real del anuncio Bluetooth deberá comprobarse posteriormente con
-un dispositivo Android físico compatible con BLE.
-
-### Visualización de la medición fake
-
-La interfaz Android incorpora un botón adicional destinado exclusivamente a
-probar el sistema sin disponer del sensor físico.
+El flujo es:
 
 ```text
 Cargar medición fake
@@ -726,22 +1058,11 @@ Medicion
         |
         v
 mostrarMedicionFake()
-        |
-        v
-Interfaz gráfica
 ```
 
-#### Cargar medición fake
+---
 
-```text
-botonCargarMedicionFakePulsado()
-```
-
-Responsabilidad:
-
-Solicitar una medición a `LogicaFakeTelefono` y mostrarla en la interfaz.
-
-#### Mostrar medición fake
+### mostrarMedicionFake()
 
 ```text
 medicion: Medicion --> mostrarMedicionFake()
@@ -749,93 +1070,582 @@ medicion: Medicion --> mostrarMedicionFake()
 
 Responsabilidad:
 
-Mostrar en la pantalla los datos de una medición ficticia.
+Mostrar una medición ficticia en la interfaz.
 
-Los campos propios de BLE que no forman parte de `Medicion`, como `Major`,
-`Minor` y `TxPower`, se mostrarán como no aplicables.
+Los datos pertenecientes únicamente al protocolo BLE se muestran como:
 
-La lógica fake no sustituye a la recepción BLE real. Se utiliza únicamente
-para permitir pruebas reproducibles del cliente y de las futuras
-comunicaciones REST.
+```text
+Major: No aplica
+
+Minor: No aplica
+
+TxPower: No aplica
+```
+
+Los datos de la medición se muestran normalmente:
+
+```text
+Dispositivo: GTI-3A
+
+UUID: EPSG-GTI-PROY-3A
+
+Tipo: O3
+
+Contador: 30
+
+Valor: 333 ppb
+
+RSSI: -68 dBm
+```
+
+---
+
+### onCreate()
+
+```text
+onCreate()
+```
+
+Responsabilidad:
+
+Inicializar la pantalla principal y comenzar la inicialización Bluetooth cuando
+se crea la actividad.
+
+El `Bundle` proporcionado por Android es un detalle del framework y se omite en
+la firma lógica.
+
+---
+
+### onRequestPermissionsResult()
+
+```text
+request_code: N,
+resultados: [Z]
+    -->
+onRequestPermissionsResult()
+```
+
+Responsabilidad:
+
+Procesar el resultado de la solicitud de permisos.
+
+Si todos los permisos necesarios han sido concedidos:
+
+```text
+onRequestPermissionsResult()
+        |
+        v
+inicializarBlueTooth()
+```
+
+Los parámetros adicionales utilizados únicamente por el framework Android no
+forman parte de la firma lógica.
+
+---
+
+### Interfaz gráfica Android
+
+La interfaz conserva los tres controles principales del código proporcionado:
+
+```text
+Buscar Dispositivos BTLE
+
+Detener búsqueda Dispositivos BTLE
+
+Buscar nuestro dispositivo BTLE
+```
+
+y añade:
+
+```text
+Cargar medición fake
+```
+
+La zona de información muestra:
+
+```text
+Estado
+
+Dispositivo
+
+UUID
+
+Major
+
+Minor
+
+Tipo
+
+Contador
+
+Valor
+
+RSSI
+
+TxPower
+```
+
+Antes de recibir datos:
+
+```text
+Estado: Esperando sensor...
+```
+
+Durante una búsqueda filtrada:
+
+```text
+Estado: Buscando GTI-3A...
+```
+
+Cuando se recibe un iBeacon válido:
+
+```text
+Estado: Sensor detectado
+```
+
+---
+
+### Ejemplo de pantalla con medida real
+
+Ejemplo basado en un valor negativo:
+
+```text
+------------------------------------------------
+
+PBIO - Sensor BLE
+
+
+[ Buscar Dispositivos BTLE ]
+
+[ Detener búsqueda Dispositivos BTLE ]
+
+[ Buscar nuestro dispositivo BTLE ]
+
+[ Cargar medición fake ]
+
+
+Estado: Sensor detectado
+
+Dispositivo: GTI-3A
+
+UUID: EPSG-GTI-PROY-3A
+
+Major: 3647
+
+Minor: 65342
+
+Tipo: O3 (14)
+
+Contador: 63
+
+Valor: -194 ppb
+
+RSSI: -29 dBm
+
+TxPower: -53 dBm
+
+------------------------------------------------
+```
+
+El RSSI de recepción cambia dependiendo de la distancia y las condiciones del
+entorno.
+
+---
+
+### Diferencia entre RSSI y TxPower
+
+`RSSI` representa la potencia con la que el teléfono recibe el anuncio en ese
+momento.
+
+Ejemplo:
+
+```text
+RSSI = -29 dBm
+```
+
+`TxPower` representa el valor de referencia incluido dentro del iBeacon.
+
+En el emisor actual:
+
+```text
+TxPower = -53 dBm
+```
+
+Son valores diferentes y no deben confundirse.
+
+---
+
+### Flujo completo BLE - Android
+
+```text
+Arduino
+   |
+   v
+iBeacon
+   |
+   v
+BluetoothLeScanner
+   |
+   v
+ScanResult
+   |
+   v
+ScanRecord
+   |
+   v
+bytes
+   |
+   v
+validación iBeacon
+   |
+   v
+TramaIBeacon
+   |
+   +--> UUID
+   |
+   +--> Major
+   |
+   +--> Minor
+   |
+   +--> TxPower
+   |
+   v
+Utilidades
+   |
+   +--> bytesToUInt16(Major)
+   |
+   +--> bytesToUInt16(Minor)
+   |
+   +--> bytesToInt16ConSigno(Minor)
+   |
+   v
+tipo
+contador
+valor
+   |
+   v
+MainActivity
+   |
+   v
+interfaz
+```
+
+---
+
+### Pruebas automáticas
+
+#### `TramaIBeaconTest`
+
+Existe un test automático para verificar la separación e interpretación básica
+de una trama iBeacon.
+
+```text
+comprobarTramaIBeacon()
+```
+
+Comprueba:
+
+```text
+UUID
+Major
+Minor
+TxPower
+tipo
+contador
+valor
+```
+
+La prueba utiliza una trama ficticia conocida.
+
+Esto permite validar la lógica de separación de la trama sin disponer
+físicamente del beacon.
+
+---
+
+#### `LogicaFakeTelefonoTest`
+
+Existe un test automático para comprobar que:
+
+```text
+LogicaFakeTelefono.crearMedicionFake()
+```
+
+genera exactamente:
+
+```text
+uuid = "EPSG-GTI-PROY-3A"
+
+nombre_dispositivo = "GTI-3A"
+
+tipo = "O3"
+
+valor = 333
+
+contador = 30
+
+rssi = -68
+```
+
+---
+
+#### `UtilidadesTest`
+
+Existe un test automático específico para comprobar la interpretación del
+campo `minor`.
+
+Se comprueba un valor positivo:
+
+```text
+bytes = 0x014D
+
+bytesToUInt16() = 333
+
+bytesToInt16ConSigno() = 333
+```
+
+y un valor negativo:
+
+```text
+bytes = 0xFF3E
+
+bytesToUInt16() = 65342
+
+bytesToInt16ConSigno() = -194
+```
+
+El segundo caso reproduce una situación observada físicamente en el beacon
+real.
+
+Los tests Android han sido ejecutados mediante:
+
+```text
+./gradlew test
+```
+
+obteniendo:
+
+```text
+BUILD SUCCESSFUL
+```
+
+---
+
+### Pruebas en emulador
+
+La aplicación se ha ejecutado en un emulador Android.
+
+Se ha comprobado:
+
+```text
+inicio de la aplicación
+
+inicialización Bluetooth
+
+inicio de escaneo BLE
+
+detención del escaneo
+
+escaneo filtrado para GTI-3A
+
+actualización del estado de la interfaz
+
+visualización de una medición fake
+
+ausencia de cierres inesperados
+```
+
+El emulador no se utiliza como prueba de recepción física del beacon.
+
+---
+
+### Comprobación física del beacon
+
+El beacon real ha sido comprobado utilizando un teléfono Android y una
+aplicación externa de análisis BLE.
+
+Se ha observado:
+
+```text
+Nombre = GTI-3A
+
+Tipo = iBeacon
+
+Company = 0x004C
+
+UUID = EPSG-GTI-PROY-3A
+
+Major = 3647
+
+Minor = 65342
+
+RSSI at 1m = -53 dBm
+```
+
+El `Major` observado verifica:
+
+```text
+tipo = 14
+
+contador = 63
+```
+
+y el `Minor` observado verifica la necesidad de distinguir entre:
+
+```text
+Minor bruto = 65342
+
+Valor con signo = -194 ppb
+```
+
+Por tanto, el contrato de codificación entre Arduino y Android ha sido
+contrastado con un anuncio BLE real.
 
 ---
 
 ## Design Clarifications
 
-- El código de `TramaIBeacon` y `Utilidades` parte del código proporcionado por
-  los profesores y se mantiene con la máxima fidelidad posible.
+- El código de `TramaIBeacon` y gran parte de `Utilidades` procede del código
+  proporcionado por los profesores.
 
-- El `package` original se adapta al package del proyecto actual:
+- Se conserva su estructura y sus funciones originales siempre que es posible.
+
+- El `package` se adapta al proyecto actual:
 
   ```text
   com.example.abalgra1.pbio
   ```
 
-- La estructura y los nombres principales de `MainActivity` también se basan en
-  el código proporcionado por los profesores.
+- El proyecto Android utiliza:
 
-- Se han realizado únicamente las adaptaciones necesarias para utilizar el
-  código en versiones modernas de Android.
+  ```text
+  Minimum SDK API 26
+  ```
 
-- Para Android 12 y posteriores se utilizan los permisos:
+- La aplicación incorpora las adaptaciones necesarias para versiones modernas
+  de Android.
+
+- Para Android 12 y posteriores se utilizan:
 
   ```text
   BLUETOOTH_SCAN
   BLUETOOTH_CONNECT
   ```
 
-- Para versiones anteriores se conserva el uso del permiso de localización
-  necesario para el escaneo BLE.
+- Para versiones anteriores se conserva el permiso de localización necesario
+  para el escaneo BLE.
 
-- La aplicación no activa Bluetooth silenciosamente. Si Bluetooth está
-  desactivado, Android solicita al usuario que lo active.
+- La aplicación no activa Bluetooth silenciosamente.
 
-- Antes de acceder a los bytes de un `ScanRecord` se comprueba que el objeto
-  recibido no sea nulo.
+- Si Bluetooth está desactivado se solicita al usuario que lo active.
 
-- Antes de construir `TramaIBeacon` se comprueba que la trama tenga una
-  longitud suficiente.
+- Antes de acceder al contenido de un `ScanRecord` se comprueba que no sea nulo.
 
-- Se comprueba el prefijo esperado de iBeacon antes de interpretar una trama
-  como tal.
+- Antes de construir `TramaIBeacon` se comprueba que la longitud recibida sea
+  suficiente.
 
-- `TramaIBeacon` únicamente representa y separa los campos de la trama.
+- Se comprueba el prefijo iBeacon esperado antes de interpretar una trama.
 
-- `Utilidades` contiene únicamente funciones auxiliares de conversión y no
-  mantiene estado.
+- `TramaIBeacon` únicamente representa y separa campos.
 
-- `MainActivity` coordina el escaneo y la presentación, pero no contiene lógica
-  de backend ni acceso a base de datos.
+- `Utilidades` únicamente proporciona operaciones auxiliares de conversión.
 
-- La visualización de los datos no modifica la información recibida.
+- `MainActivity` coordina el escaneo, la interpretación y la presentación.
 
-- El RSSI recibido por el teléfono y el `txPower` incluido dentro del iBeacon
-  son datos diferentes.
+- `Medicion` representa la información lógica que utilizarán las siguientes
+  capas del sistema.
 
-- La interpretación de `major` utilizada inicialmente sigue el código
-  proporcionado:
+- `LogicaFakeTelefono` genera datos de prueba y no realiza comunicaciones.
+
+- El nombre BLE definitivo utilizado en Sprint 0 es:
 
   ```text
-  byte más significativo -> tipo
-  byte menos significativo -> contador
+  GTI-3A
   ```
 
-- Esta interpretación todavía deberá contrastarse con la trama emitida por la
-  placa real del Sprint 0.
+- El UUID definitivo es:
 
-- Por ese motivo se muestran también los valores `Major` y `Minor` sin ocultar.
+  ```text
+  EPSG-GTI-PROY-3A
+  ```
 
-- Actualmente se conserva `bytesToIntOK()` tal como aparece en el material
-  proporcionado. Cualquier corrección posterior deberá justificarse y
-  documentarse antes de modificar su comportamiento.
+- El identificador de O3 es:
 
-- El proyecto Android utiliza Minimum SDK API 26.
+  ```text
+  14
+  ```
 
-- La aplicación se ha ejecutado en un emulador Android y se ha comprobado que
-  se pueden iniciar y detener los escaneos BLE sin provocar errores.
+- La codificación definitiva de `major` es:
 
-- La recepción del sensor físico queda pendiente de validación mediante un
-  teléfono Android físico.
+  ```text
+  byte alto -> tipo
+  byte bajo -> contador
+  ```
+
+- Esta codificación ya ha sido contrastada con el beacon real.
+
+- El campo `minor` transporta un entero de 16 bits con signo.
+
+- `bytesToUInt16()` se añade específicamente para interpretar los 16 bits como
+  valor bruto sin signo.
+
+- `bytesToInt16ConSigno()` se añade específicamente para recuperar el valor de
+  O3 con signo.
+
+- Las funciones originales:
+
+  ```text
+  bytesToInt()
+  bytesToIntOK()
+  ```
+
+  se mantienen para conservar la máxima fidelidad posible al código
+  proporcionado.
+
+- `bytesToIntOK()` se conserva sin modificar su comportamiento original.
+
+- `Major` y `Minor` se mantienen visibles en pantalla durante Sprint 0 para
+  facilitar la verificación y depuración del protocolo.
+
+- En la interfaz:
+
+  ```text
+  Minor
+  ```
+
+  representa el valor bruto de 16 bits.
+
+- En la interfaz:
+
+  ```text
+  Valor
+  ```
+
+  representa la concentración de O3 ya interpretada y expresada en ppb.
+
+- El RSSI recibido por el teléfono y el `TxPower` del iBeacon son valores
+  diferentes.
+
+- La lógica fake no sustituye a la recepción real.
+
+- La lógica fake permite desarrollar y probar las capas posteriores de forma
+  reproducible.
+
+- La recepción del beacon real ha sido comprobada mediante un teléfono Android
+  físico utilizando una aplicación externa de análisis BLE.
+
+- La recepción del beacon mediante la aplicación PBIO deberá validarse también
+  sobre un teléfono Android físico cuando se disponga de él.
+
+- El futuro cliente REST recibirá una `Medicion` ya interpretada.
+
+- El cliente REST no deberá conocer:
+
+  ```text
+  Major
+  Minor
+  estructura iBeacon
+  representación int16
+  ```
 
 ---
 
@@ -844,20 +1654,19 @@ comunicaciones REST.
 - **Programming Language:** Java.
 
 - **Function/Method Headers:** Cada función o método debe incluir su diseño
-  lógico dentro de un bloque de comentarios delimitado por líneas
-  discontinuas.
+  lógico en un bloque de comentarios delimitado por líneas discontinuas.
 
   Ejemplo:
 
   ```text
   // --------------------------------------------------
-  // major: [N]_2 --> obtenerTipoMedicion() --> N
+  // bytes: [N]_2 --> bytesToUInt16() --> N
   //
-  // Obtiene el tipo codificado en el campo major.
+  // Interpreta dos bytes como entero sin signo.
   // --------------------------------------------------
   ```
 
-- **File Headers:** Cada fichero de código fuente debe incluir una cabecera con:
+- **File Headers:** Cada fichero de código fuente debe incluir:
 
   ```text
   nombre del fichero
@@ -868,41 +1677,90 @@ comunicaciones REST.
   aportación
   ```
 
-- **Author:** Las nuevas aportaciones realizadas en este Sprint se documentarán
-  con:
+- **Author:** Las nuevas aportaciones realizadas en Sprint 0 se documentan con:
 
   ```text
   Álvaro Ballester Grau
   ```
 
-- **Code Readability:** El código debe ser claro y autoexplicativo. Se evitarán
-  comentarios que únicamente repitan lo que ya expresa el código.
+- **Code Readability:** El código debe ser claro y autoexplicativo.
 
-- **Separation of Responsibilities:** La interpretación BLE, las comunicaciones
-  REST y la interfaz gráfica deben mantenerse separadas.
+  Los comentarios deben explicar decisiones, contratos o comportamientos que
+  no resulten evidentes únicamente leyendo el código.
 
-  No se introducirá lógica de backend ni acceso a base de datos en el teléfono.
+- **Separation of Responsibilities:** La interpretación BLE, el modelo lógico
+  de medición, las futuras comunicaciones REST y el backend deben mantenerse
+  separados.
 
-- **Compatibility:** Se mantendrá el código proporcionado por los profesores
+- `TramaIBeacon` no realiza lógica REST.
+
+- `Utilidades` no mantiene estado.
+
+- `LogicaFakeTelefono` no realiza comunicaciones externas.
+
+- `MainActivity` no accede a la base de datos.
+
+- **Compatibility:** Se conserva el código proporcionado por los profesores
   siempre que sea compatible y funcional.
 
-  Los cambios necesarios deberán justificarse y documentarse.
+- Toda modificación necesaria debe estar justificada y documentada.
 
-- **Automated Testing:** Se generarán tests unitarios o de integración para las
-  funciones y métodos críticos.
+- **Automated Testing:** Se deben mantener tests automáticos para los métodos
+  críticos.
 
-  Siempre que sea posible, la lógica de decodificación deberá poder probarse
-  sin disponer físicamente de la placa.
+  Actualmente existen pruebas para:
 
-- **Design Consistency:** Cualquier función nueva deberá aparecer primero en
+  ```text
+  separación de trama iBeacon
+
+  interpretación de Major
+
+  lógica fake
+
+  Minor positivo
+
+  Minor negativo
+  ```
+
+- Los tests deben poder ejecutarse sin disponer físicamente del sensor siempre
+  que la operación comprobada no dependa directamente del hardware.
+
+- **Design Consistency:** Cualquier operación nueva debe aparecer primero en
   este diseño.
 
-  Su implementación deberá conservar el mismo nombre, responsabilidad,
-  entradas y salidas lógicas.
+- La implementación debe conservar:
 
-- **Repository Consistency:** El diseño almacenado en `doc/phone_design.md`
-  deberá mantenerse sincronizado con el código existente en:
+  ```text
+  nombre
+  entradas
+  salidas
+  responsabilidad
+  ```
+
+  descritos en el diseño.
+
+- **Repository Consistency:** Este diseño:
+
+  ```text
+  doc/phone_design.md
+  ```
+
+  debe permanecer sincronizado con:
 
   ```text
   src/phone/
   ```
+
+- Los cambios en el protocolo Arduino-Android deben actualizarse tanto en:
+
+  ```text
+  doc/arduino_design.md
+  ```
+
+  como en:
+
+  ```text
+  doc/phone_design.md
+  ```
+
+  antes de considerarse definitivos.
