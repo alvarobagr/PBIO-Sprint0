@@ -265,9 +265,13 @@ La trama iBeacon contiene:
 
 ```text
 Prefijo         9 bytes
+
 UUID           16 bytes
+
 Major           2 bytes
+
 Minor           2 bytes
+
 TxPower         1 byte
 ```
 
@@ -319,8 +323,11 @@ Los códigos heredados del proyecto son:
 
 ```text
 11 = CO2
+
 12 = TEMPERATURA
+
 13 = RUIDO
+
 14 = O3
 ```
 
@@ -348,6 +355,7 @@ Ejemplo observado:
 Major = 3647
 
 tipo = 14
+
 contador = 63
 ```
 
@@ -375,7 +383,9 @@ Por tanto:
 
 ```text
 0.333 ppm  --> 333 ppb
+
 0.075 ppm  --> 75 ppb
+
 -0.194 ppm --> -194 ppb
 ```
 
@@ -386,6 +396,7 @@ Por ese motivo Android mantiene dos representaciones:
 
 ```text
 minor_bruto: N
+
 valor: Z
 ```
 
@@ -421,7 +432,8 @@ El campo `major` contiene:
 
 ```text
 major[15..8] = tipo
-major[7..0]  = contador
+
+major[7..0] = contador
 ```
 
 El campo `minor` contiene:
@@ -436,7 +448,9 @@ Ejemplo:
 Arduino:
 
 tipo = 14
+
 contador = 63
+
 valor = -194 ppb
 ```
 
@@ -444,6 +458,7 @@ produce:
 
 ```text
 Major = 3647
+
 Minor bruto = 65342
 ```
 
@@ -451,7 +466,9 @@ y Android reconstruye:
 
 ```text
 tipo = 14
+
 contador = 63
+
 valor = -194 ppb
 ```
 
@@ -508,7 +525,9 @@ La medición no contiene datos propios de la codificación BLE como:
 
 ```text
 Major
+
 Minor
+
 TxPower
 ```
 
@@ -568,7 +587,9 @@ La lógica fake no realiza:
 
 ```text
 Bluetooth
+
 REST
+
 base de datos
 ```
 
@@ -614,11 +635,19 @@ Coordinar:
 
 ```text
 inicialización Bluetooth
+
+gestión de permisos
+
 escaneo BLE
+
 recepción de resultados
+
 validación básica de iBeacon
+
 interpretación de la trama
+
 actualización de la interfaz gráfica
+
 ejecución de la lógica fake desde la interfaz
 ```
 
@@ -626,8 +655,11 @@ La clase utiliza:
 
 ```text
 TramaIBeacon
+
 Utilidades
+
 Medicion
+
 LogicaFakeTelefono
 ```
 
@@ -708,8 +740,8 @@ inicializarBlueTooth()
 
 Responsabilidad:
 
-Inicializar el sistema Bluetooth del teléfono, comprobar permisos y obtener el
-escáner BLE.
+Inicializar el sistema Bluetooth del teléfono, comprobar los permisos
+necesarios y obtener el escáner BLE.
 
 Para Android 12 y posteriores se utilizan:
 
@@ -717,12 +749,50 @@ Para Android 12 y posteriores se utilizan:
 BLUETOOTH_SCAN
 
 BLUETOOTH_CONNECT
+
+ACCESS_FINE_LOCATION
+
+ACCESS_COARSE_LOCATION
 ```
 
-Para versiones anteriores se utiliza el permiso de localización requerido por
-el escaneo BLE.
+Los permisos:
+
+```text
+BLUETOOTH_SCAN
+
+BLUETOOTH_CONNECT
+```
+
+corresponden al grupo de permisos que Android muestra al usuario como
+dispositivos cercanos.
+
+Para la ubicación se considera suficiente que esté concedido:
+
+```text
+ACCESS_FINE_LOCATION
+```
+
+o:
+
+```text
+ACCESS_COARSE_LOCATION
+```
+
+Para Android 11 y anteriores se utiliza:
+
+```text
+ACCESS_FINE_LOCATION
+```
+
+para permitir el escaneo BLE.
 
 Si Bluetooth está desactivado, la aplicación solicita al usuario que lo active.
+
+Durante las pruebas físicas también se comprobó que el servicio general de
+ubicación del teléfono debe estar activado en el dispositivo utilizado para que
+el escaneo detecte correctamente el beacon.
+
+La aplicación no activa automáticamente el servicio de ubicación.
 
 ---
 
@@ -741,6 +811,9 @@ Los resultados obtenidos se procesan mediante:
 ```text
 callbackDelEscaneo
 ```
+
+Antes de iniciar el escaneo se comprueba que el escáner esté disponible y que
+los permisos necesarios estén concedidos.
 
 ---
 
@@ -761,6 +834,8 @@ El dispositivo utilizado en Sprint 0 es:
 ```text
 GTI-3A
 ```
+
+El filtro se realiza mediante el nombre BLE del dispositivo.
 
 ---
 
@@ -1127,9 +1202,46 @@ onRequestPermissionsResult()
 
 Responsabilidad:
 
-Procesar el resultado de la solicitud de permisos.
+Procesar el resultado de la solicitud de permisos necesarios para Bluetooth y
+ubicación.
 
-Si todos los permisos necesarios han sido concedidos:
+En Android 12 y posteriores los permisos se consideran correctos cuando:
+
+```text
+BLUETOOTH_SCAN = concedido
+
+BLUETOOTH_CONNECT = concedido
+```
+
+y además se ha concedido al menos uno de:
+
+```text
+ACCESS_FINE_LOCATION
+
+ACCESS_COARSE_LOCATION
+```
+
+Por tanto:
+
+```text
+BLUETOOTH_SCAN
+        &&
+BLUETOOTH_CONNECT
+        &&
+(
+    ACCESS_FINE_LOCATION
+            ||
+    ACCESS_COARSE_LOCATION
+)
+```
+
+En Android 11 y anteriores se requiere:
+
+```text
+ACCESS_FINE_LOCATION
+```
+
+Cuando los permisos necesarios se encuentran disponibles:
 
 ```text
 onRequestPermissionsResult()
@@ -1137,6 +1249,8 @@ onRequestPermissionsResult()
         v
 inicializarBlueTooth()
 ```
+
+Si no se han concedido, la aplicación informa al usuario mediante un mensaje.
 
 Los parámetros adicionales utilizados únicamente por el framework Android no
 forman parte de la firma lógica.
@@ -1205,9 +1319,9 @@ Estado: Sensor detectado
 
 ---
 
-### Ejemplo de pantalla con medida real
+### Ejemplo de pantalla con medida real negativa
 
-Ejemplo basado en un valor negativo:
+Ejemplo basado en un valor negativo observado durante las pruebas:
 
 ```text
 ------------------------------------------------
@@ -1252,6 +1366,60 @@ entorno.
 
 ---
 
+### Ejemplo de recepción mediante la aplicación PBIO
+
+Durante la prueba física con la propia aplicación desarrollada se obtuvo:
+
+```text
+Estado: Sensor detectado
+
+Dispositivo: GTI-3A
+
+UUID: EPSG-GTI-PROY-3A
+
+Major: 3628
+
+Minor: 1239
+
+Tipo: O3 (14)
+
+Contador: 44
+
+Valor: 1239 ppb
+
+RSSI: -54 dBm
+
+TxPower: -53 dBm
+```
+
+La codificación de `Major` coincide con el contrato definido:
+
+```text
+14 * 256 + 44 = 3628
+```
+
+Por tanto:
+
+```text
+tipo = 14
+
+contador = 44
+```
+
+El valor recibido mediante `Minor` fue:
+
+```text
+1239
+```
+
+y se mostró correctamente como:
+
+```text
+1239 ppb
+```
+
+---
+
 ### Diferencia entre RSSI y TxPower
 
 `RSSI` representa la potencia con la que el teléfono recibe el anuncio en ese
@@ -1260,7 +1428,7 @@ momento.
 Ejemplo:
 
 ```text
-RSSI = -29 dBm
+RSSI = -54 dBm
 ```
 
 `TxPower` representa el valor de referencia incluido dentro del iBeacon.
@@ -1347,11 +1515,17 @@ Comprueba:
 
 ```text
 UUID
+
 Major
+
 Minor
+
 TxPower
+
 tipo
+
 contador
+
 valor
 ```
 
@@ -1460,10 +1634,12 @@ El emulador no se utiliza como prueba de recepción física del beacon.
 
 ### Comprobación física del beacon
 
-El beacon real ha sido comprobado utilizando un teléfono Android y una
-aplicación externa de análisis BLE.
+El beacon real ha sido comprobado físicamente con un teléfono Android.
 
-Se ha observado:
+Inicialmente se utilizó una aplicación externa de análisis BLE para verificar
+directamente la información emitida por la placa.
+
+En esa prueba se observó:
 
 ```text
 Nombre = GTI-3A
@@ -1481,7 +1657,7 @@ Minor = 65342
 RSSI at 1m = -53 dBm
 ```
 
-El `Major` observado verifica:
+El `Major` observado permitió comprobar:
 
 ```text
 tipo = 14
@@ -1489,7 +1665,13 @@ tipo = 14
 contador = 63
 ```
 
-y el `Minor` observado verifica la necesidad de distinguir entre:
+porque:
+
+```text
+14 * 256 + 63 = 3647
+```
+
+El `Minor` observado permitió comprobar la necesidad de distinguir entre:
 
 ```text
 Minor bruto = 65342
@@ -1497,8 +1679,98 @@ Minor bruto = 65342
 Valor con signo = -194 ppb
 ```
 
-Por tanto, el contrato de codificación entre Arduino y Android ha sido
-contrastado con un anuncio BLE real.
+Posteriormente se realizó una segunda prueba utilizando directamente la propia
+aplicación PBIO desarrollada para Sprint 0.
+
+La aplicación detectó físicamente el beacon y mostró:
+
+```text
+Estado = Sensor detectado
+
+Dispositivo = GTI-3A
+
+UUID = EPSG-GTI-PROY-3A
+
+Major = 3628
+
+Minor = 1239
+
+Tipo = O3 (14)
+
+Contador = 44
+
+Valor = 1239 ppb
+
+RSSI = -54 dBm
+
+TxPower = -53 dBm
+```
+
+La interpretación del `Major` fue correcta:
+
+```text
+14 * 256 + 44 = 3628
+```
+
+por lo que:
+
+```text
+tipo = 14
+
+contador = 44
+```
+
+El campo `Minor` fue recibido con el valor:
+
+```text
+1239
+```
+
+y la aplicación lo interpretó correctamente como:
+
+```text
+1239 ppb
+```
+
+La prueba física confirma el flujo:
+
+```text
+Arduino
+    |
+    v
+iBeacon real
+    |
+    v
+teléfono Android
+    |
+    v
+aplicación PBIO
+    |
+    v
+TramaIBeacon
+    |
+    v
+Utilidades
+    |
+    v
+tipo / contador / valor
+    |
+    v
+interfaz gráfica
+```
+
+Por tanto, el contrato de comunicación Arduino-Android ha sido validado
+físicamente utilizando tanto una aplicación externa de análisis BLE como la
+propia aplicación PBIO.
+
+Durante la prueba también se comprobó que, en el teléfono Android utilizado,
+además de conceder los permisos necesarios, el servicio general de ubicación
+del dispositivo debe encontrarse activado para que el escaneo BLE detecte el
+beacon correctamente.
+
+Esta activación del servicio de ubicación se realiza actualmente por el usuario
+desde el sistema operativo y no forma parte de la lógica automática de la
+aplicación.
 
 ---
 
@@ -1524,19 +1796,51 @@ contrastado con un anuncio BLE real.
 - La aplicación incorpora las adaptaciones necesarias para versiones modernas
   de Android.
 
-- Para Android 12 y posteriores se utilizan:
+- Para Android 12 y posteriores se utilizan los permisos:
 
   ```text
   BLUETOOTH_SCAN
+
   BLUETOOTH_CONNECT
+
+  ACCESS_FINE_LOCATION
+
+  ACCESS_COARSE_LOCATION
   ```
 
-- Para versiones anteriores se conserva el permiso de localización necesario
-  para el escaneo BLE.
+- `BLUETOOTH_SCAN` y `BLUETOOTH_CONNECT` forman parte del grupo de permisos que
+  Android presenta al usuario como dispositivos cercanos.
+
+- Para la ubicación en Android 12 y posteriores se acepta:
+
+  ```text
+  ACCESS_FINE_LOCATION
+  ```
+
+  o:
+
+  ```text
+  ACCESS_COARSE_LOCATION
+  ```
+
+- Para Android 11 y anteriores se utiliza:
+
+  ```text
+  ACCESS_FINE_LOCATION
+  ```
+
+  para permitir el escaneo BLE.
 
 - La aplicación no activa Bluetooth silenciosamente.
 
 - Si Bluetooth está desactivado se solicita al usuario que lo active.
+
+- Durante las pruebas físicas se comprobó que en el teléfono utilizado el
+  servicio general de ubicación debe encontrarse activado para detectar el
+  beacon.
+
+- La aplicación no comprueba ni activa automáticamente ese servicio general de
+  ubicación.
 
 - Antes de acceder al contenido de un `ScanRecord` se comprueba que no sea nulo.
 
@@ -1549,7 +1853,7 @@ contrastado con un anuncio BLE real.
 
 - `Utilidades` únicamente proporciona operaciones auxiliares de conversión.
 
-- `MainActivity` coordina el escaneo, la interpretación y la presentación.
+- `MainActivity` coordina permisos, escaneo, interpretación y presentación.
 
 - `Medicion` representa la información lógica que utilizarán las siguientes
   capas del sistema.
@@ -1578,10 +1882,11 @@ contrastado con un anuncio BLE real.
 
   ```text
   byte alto -> tipo
+
   byte bajo -> contador
   ```
 
-- Esta codificación ya ha sido contrastada con el beacon real.
+- Esta codificación ha sido contrastada físicamente con el beacon real.
 
 - El campo `minor` transporta un entero de 16 bits con signo.
 
@@ -1595,6 +1900,7 @@ contrastado con un anuncio BLE real.
 
   ```text
   bytesToInt()
+
   bytesToIntOK()
   ```
 
@@ -1633,8 +1939,37 @@ contrastado con un anuncio BLE real.
 - La recepción del beacon real ha sido comprobada mediante un teléfono Android
   físico utilizando una aplicación externa de análisis BLE.
 
-- La recepción del beacon mediante la aplicación PBIO deberá validarse también
-  sobre un teléfono Android físico cuando se disponga de él.
+- La recepción del beacon también ha sido comprobada físicamente mediante la
+  propia aplicación PBIO.
+
+- La aplicación PBIO ha detectado correctamente:
+
+  ```text
+  GTI-3A
+  ```
+
+  y ha mostrado:
+
+  ```text
+  UUID
+
+  Major
+
+  Minor
+
+  tipo O3
+
+  contador
+
+  valor
+
+  RSSI
+
+  TxPower
+  ```
+
+- Por tanto, la recepción física Arduino-Android ya se considera validada para
+  Sprint 0.
 
 - El futuro cliente REST recibirá una `Medicion` ya interpretada.
 
@@ -1642,9 +1977,33 @@ contrastado con un anuncio BLE real.
 
   ```text
   Major
+
   Minor
+
   estructura iBeacon
+
   representación int16
+  ```
+
+- La separación de responsabilidades queda definida como:
+
+  ```text
+  Arduino
+      |
+      v
+  codificación BLE
+      |
+      v
+  Android
+      |
+      v
+  interpretación
+      |
+      v
+  Medicion
+      |
+      v
+  REST
   ```
 
 ---
@@ -1670,10 +2029,15 @@ contrastado con un anuncio BLE real.
 
   ```text
   nombre del fichero
+
   descripción
+
   copyright
+
   fecha
+
   autor
+
   aportación
   ```
 
@@ -1700,6 +2064,8 @@ contrastado con un anuncio BLE real.
 
 - `MainActivity` no accede a la base de datos.
 
+- `MainActivity` tampoco realiza actualmente comunicaciones REST.
+
 - **Compatibility:** Se conserva el código proporcionado por los profesores
   siempre que sea compatible y funcional.
 
@@ -1725,15 +2091,20 @@ contrastado con un anuncio BLE real.
 - Los tests deben poder ejecutarse sin disponer físicamente del sensor siempre
   que la operación comprobada no dependa directamente del hardware.
 
-- **Design Consistency:** Cualquier operación nueva debe aparecer primero en
-  este diseño.
+- Las pruebas que dependan del hardware deben documentarse por separado como
+  pruebas físicas.
+
+- **Design Consistency:** Cualquier operación nueva debe aparecer en este diseño.
 
 - La implementación debe conservar:
 
   ```text
   nombre
+
   entradas
+
   salidas
+
   responsabilidad
   ```
 
@@ -1764,3 +2135,6 @@ contrastado con un anuncio BLE real.
   ```
 
   antes de considerarse definitivos.
+
+- Las futuras incorporaciones del cliente REST deberán añadirse al diseño antes
+  de modificar la implementación del componente Android.
