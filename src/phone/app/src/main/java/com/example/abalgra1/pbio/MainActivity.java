@@ -11,7 +11,7 @@ Aportación: Adaptación del código proporcionado por los profesores al proyect
             PBIO Sprint 0, compatibilidad con versiones actuales de Android,
             gestión de permisos Bluetooth y ubicación, visualización BLE,
             soporte de lógica fake e interpretación de valores Minor de
-            16 bits con signo.
+            16 bits con signo y envío manual de mediciones al servidor REST.
 -----------------------------------------------------------------------------
 */
 
@@ -35,6 +35,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.TextView;
+import android.widget.Button;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -54,6 +55,12 @@ public class MainActivity extends AppCompatActivity {
             112233;
 
     private BluetoothLeScanner elEscanner;
+
+    // La ultima medicion real o fake disponible para el envio manual.
+    // volatile permite la lectura desde la UI y la actualizacion BLE.
+    private volatile Medicion ultimaMedicion;
+
+    private final ClienteRestMediciones clienteRest = new ClienteRestMediciones();
 
 
     private final ScanCallback callbackDelEscaneo =
@@ -932,6 +939,19 @@ public class MainActivity extends AppCompatActivity {
                 rssi,
                 txPower
         );
+
+        // Preparar un objeto Medicion solo cuando es nuestro sensor O3.
+        // No se envia nada automaticamente: el usuario pulsa el boton.
+        if ("EPSG-GTI-PROY-3A".equals(uuid) && tipo == 14) {
+            ultimaMedicion = new Medicion(
+                    uuid,
+                    "GTI-3A",
+                    "O3",
+                    valor,
+                    contador,
+                    rssi
+            );
+        }
     }
 
 
@@ -1388,6 +1408,79 @@ public class MainActivity extends AppCompatActivity {
         mostrarMedicionFake(
                 medicion
         );
+
+        // La medicion fake se puede enviar con el mismo boton que la real.
+        ultimaMedicion = medicion;
+    }
+
+
+    // -------------------------------------------------------------------------
+    // --> botonGuardarYEnviarPulsado()
+    //
+    // Envia a REST la ultima Medicion disponible bajo accion del usuario.
+    // El token de pruebas se incluye automaticamente desde BuildConfig,
+    // generado a partir del local.properties privado en la build debug.
+    // La red trabaja en otro hilo para no bloquear la interfaz Android.
+    // -------------------------------------------------------------------------
+    public void botonGuardarYEnviarPulsado(View view) {
+        final Medicion medicion = ultimaMedicion;
+        final TextView textoEstadoRest = findViewById(R.id.textoEstadoRest);
+        final Button botonEnviar = findViewById(R.id.botonGuardarYEnviar);
+
+        if (medicion == null) {
+            textoEstadoRest.setText(
+                    "REST: primero detecta el beacon o carga una medición fake"
+            );
+            return;
+        }
+
+        // El token se inyecta solo en la compilacion de depuracion.
+        // Nunca se introduce ni se muestra en la interfaz del telefono.
+        final String token = BuildConfig.PBIO_API_TOKEN;
+        if (token == null || token.isEmpty()) {
+            textoEstadoRest.setText(
+                    "REST: falta PBIO_API_TOKEN en local.properties " +
+                            "(compila la version debug)"
+            );
+            return;
+        }
+
+        botonEnviar.setEnabled(false);
+        textoEstadoRest.setText("REST: enviando medición...");
+
+        clienteRest.enviarMedicion(medicion, token, (codigo, cuerpo, error) ->
+                runOnUiThread(() -> {
+                    botonEnviar.setEnabled(true);
+
+                    if (codigo == 201 && error == null) {
+                        textoEstadoRest.setText(
+                                "REST: guardada correctamente: "
+                                        + medicion.getValor() + " ppb (HTTP 201)"
+                        );
+                    } else {
+                        String detalle = error;
+                        if (detalle == null || detalle.isEmpty()) {
+                            detalle = "respuesta no satisfactoria";
+                        }
+                        textoEstadoRest.setText(
+                                "REST: error " + (codigo > 0 ? "HTTP " + codigo : "de conexión")
+                                        + " - " + detalle
+                        );
+                    }
+                })
+        );
+    }
+
+
+    // -------------------------------------------------------------------------
+    // --> onDestroy()
+    //
+    // Cierra el hilo de red al destruirse la actividad.
+    // -------------------------------------------------------------------------
+    @Override
+    protected void onDestroy() {
+        clienteRest.cerrar();
+        super.onDestroy();
     }
 
 

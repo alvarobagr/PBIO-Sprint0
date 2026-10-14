@@ -1,0 +1,20 @@
+# ---------------------------------------------------------------------------
+# Fichero: .htaccess
+# Descripcion: Enrutamiento REST para PBIO en Apache/Plesk.
+# Autor: Álvaro Ballester Grau
+# Fecha: 12/10/2026
+# ---------------------------------------------------------------------------
+
+DirectoryIndex index.php
+
+<IfModule mod_rewrite.c>
+
+    RewriteEngine On
+    RewriteBase /api/
+
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteCond %{REQUEST_FILENAME} !-d
+
+    RewriteRule ^ index.php [L,QSA]
+
+</IfModule>

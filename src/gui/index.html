@@ -1,0 +1,208 @@
+<!doctype html>
+
+<!--
+-----------------------------------------------------------------------------
+Fichero: index.html
+Descripción: Interfaz web de consulta de mediciones de O3.
+Copyright: Copyright (c) 2026 Álvaro Ballester Grau
+Fecha: 13/10/2026
+Autor: Álvaro Ballester Grau
+Aportación: Visualización de la última lectura e historial del proyecto PBIO.
+-----------------------------------------------------------------------------
+-->
+
+<html lang="es">
+
+<head>
+
+    <meta charset="utf-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <meta name="theme-color" content="#101827">
+
+    <meta
+        name="description"
+        content="Panel web de mediciones de ozono del proyecto PBIO Sprint 0."
+    >
+
+    <title>PBIO | Sensor de ozono</title>
+
+    <link rel="stylesheet" href="./estilos.css">
+
+    <script type="module" src="./app.js"></script>
+
+</head>
+
+<body>
+
+    <div class="pagina">
+
+        <header class="cabecera">
+
+            <div>
+
+                <p class="etiqueta">PBIO · Sprint 0</p>
+
+                <h1>Sensor de ozono</h1>
+
+                <p class="descripcion">
+                    Mediciones registradas por el dispositivo GTI-3A.
+                </p>
+
+            </div>
+
+            <div
+                class="indicador"
+                aria-label="Datos consultados desde el servidor"
+            >
+                Datos de MySQL
+            </div>
+
+        </header>
+
+        <main>
+
+            <section
+                class="tarjeta medida"
+                aria-labelledby="tituloUltima"
+            >
+
+                <div class="fila-encabezado">
+
+                    <div>
+
+                        <p class="etiqueta">ÚLTIMA LECTURA</p>
+
+                        <h2 id="tituloUltima">
+                            Concentración de O3
+                        </h2>
+
+                    </div>
+
+                    <span class="unidad-cabecera">
+                        Partes por mil millones
+                    </span>
+
+                </div>
+
+                <div
+                    class="lectura"
+                    aria-live="polite"
+                    aria-atomic="true"
+                >
+
+                    <span id="valorUltima" class="numero">—</span>
+
+                    <span class="unidad">ppb</span>
+
+                </div>
+
+                <div class="datos-ultima">
+
+                    <div>
+                        <span class="nombre-dato">Dispositivo</span>
+                        <strong id="nombreDispositivo">—</strong>
+                    </div>
+
+                    <div>
+                        <span class="nombre-dato">Fecha del servidor</span>
+                        <strong id="fechaUltima">—</strong>
+                    </div>
+
+                    <div>
+                        <span class="nombre-dato">Contador</span>
+                        <strong id="contadorUltima">—</strong>
+                    </div>
+
+                    <div>
+                        <span class="nombre-dato">Señal RSSI</span>
+                        <strong id="rssiUltima">—</strong>
+                    </div>
+
+                </div>
+
+            </section>
+
+            <section
+                class="tarjeta historial"
+                aria-labelledby="tituloHistorial"
+            >
+
+                <div class="fila-encabezado encabezado-historial">
+
+                    <div>
+
+                        <p class="etiqueta">REGISTROS RECIENTES</p>
+
+                        <h2 id="tituloHistorial">
+                            Últimas cinco mediciones
+                        </h2>
+
+                    </div>
+
+                    <button
+                        id="botonActualizar"
+                        type="button"
+                    >
+                        Actualizar ahora
+                    </button>
+
+                </div>
+
+                <p
+                    id="estadoConsulta"
+                    role="status"
+                    aria-live="polite"
+                >
+                    Consultando el servidor…
+                </p>
+
+                <div class="contenedor-tabla">
+
+                    <table>
+
+                        <thead>
+
+                            <tr>
+                                <th scope="col">ID</th>
+                                <th scope="col">Fecha y hora</th>
+                                <th scope="col">Tipo</th>
+                                <th scope="col">Valor</th>
+                                <th scope="col">Contador</th>
+                                <th scope="col">RSSI</th>
+                            </tr>
+
+                        </thead>
+
+                        <tbody id="filasMediciones"></tbody>
+
+                    </table>
+
+                </div>
+
+            </section>
+
+        </main>
+
+        <footer>
+
+            <p>
+                Proyecto PBIO · Grado en Tecnologías Interactivas · UPV
+            </p>
+
+            <p>
+                Actualización automática cada 15 segundos.
+                Las fechas proceden del servidor.
+            </p>
+
+        </footer>
+
+    </div>
+
+</body>
+
+</html>

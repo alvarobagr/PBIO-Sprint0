@@ -757,6 +757,49 @@ como con:
 USAR_MEDIDA_FICTICIA = false
 ```
 
+
+#### Pruebas automatizadas del contrato iBeacon
+
+El componente Arduino dispone de pruebas automatizadas de contrato
+que pueden ejecutarse sin conectar físicamente la placa.
+
+Archivo de pruebas:
+
+`src/arduino/tests/test_contrato_ibeacon.mjs`
+
+Las pruebas verifican:
+
+- UUID de 16 bytes: EPSG-GTI-PROY-3A.
+- Identificador del tipo O3 igual a 14.
+- Identificador de fabricante Apple igual a 0x004C.
+- Codificación del tipo y contador en Major.
+- Conversión de ppm a ppb en Minor.
+- Conservación de valores negativos de 16 bits.
+- Límites del valor transmitido: -32768..32767.
+- Configuración del anuncio BLE y modos real/ficticio.
+- Secuencia de publicación e incremento del contador.
+
+Las pruebas utilizan Node.js para inspeccionar el código fuente
+y comprobar ejemplos independientes de codificación.
+
+Comando de ejecución desde la raíz del repositorio:
+
+```powershell
+node --test src/arduino/tests/test_contrato_ibeacon.mjs
+```
+
+Resultado comprobado el 14/10/2026:
+
+- Tests ejecutados: 8.
+- Tests correctos: 8.
+- Tests fallidos: 0.
+
+Estas pruebas complementan las realizadas con la placa física.
+
+No sustituyen la compilación del firmware, las pruebas de hardware
+ni la comprobación experimental de la transmisión BLE.
+
+
 ---
 
 ## Design Clarifications

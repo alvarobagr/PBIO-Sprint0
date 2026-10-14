@@ -22,14 +22,32 @@ interpretar tipo / contador / valor
 mostrar la información en pantalla
         |
         v
-generar una Medicion
+construir una Medicion real (o cargar una fake)
         |
         v
-cliente REST (posteriormente)
+guardar la ultima Medicion disponible
+        |
+        v
+pulsar Guardar y enviar al servidor
+        |
+        v
+ClienteRestMediciones: POST HTTPS + JSON + token
+        |
+        v
+REST en Plesk -> logica de negocio PHP -> MySQL
 ```
 
 La aplicación también incorpora una lógica fake para poder probar el sistema
-sin depender de la recepción física del sensor.
+sin depender de la recepción física del sensor. El envío al REST ya está
+implementado y se inicia exclusivamente al pulsar el botón correspondiente:
+recibir anuncios BLE no provoca inserciones automáticas en MySQL.
+
+La aplicación solo conoce datos de dominio (`Medicion`) y delega la codificación
+JSON y la conexión HTTPS en `ClienteRestMediciones`. La versión de demostración
+utiliza el token configurado en `local.properties` y expuesto por Gradle mediante
+`BuildConfig.PBIO_API_TOKEN`; no se incluye la clave literal en los fuentes.
+Este token sí queda incorporado a la APK *debug* y no constituye un secreto
+seguro frente a quien obtenga esa APK.
 
 ---
 
@@ -610,8 +628,13 @@ Medicion
         |
         +------------------> interfaz Android
         |
-        +------------------> cliente REST
-                              posteriormente
+        +------------------> ultimaMedicion
+                                      |
+                                      v
+                              botonGuardarYEnviarPulsado()
+                                      |
+                                      v
+                              ClienteRestMediciones
 ```
 
 La medición fake utiliza la misma estructura que utilizará una medición
@@ -649,6 +672,12 @@ interpretación de la trama
 actualización de la interfaz gráfica
 
 ejecución de la lógica fake desde la interfaz
+
+conservación de la última medición real o fake
+
+inicio manual del envío a través de ClienteRestMediciones
+
+notificación visual del resultado REST
 ```
 
 La clase utiliza:
@@ -661,9 +690,12 @@ Utilidades
 Medicion
 
 LogicaFakeTelefono
+
+ClienteRestMediciones
 ```
 
-No contiene lógica de backend ni acceso a base de datos.
+No contiene lógica de backend ni acceso a base de datos. La actividad coordina
+la petición, pero no construye JSON ni ejecuta conexiones HTTPS directamente.
 
 ```text
                  ---------------- MainActivity ----------------
@@ -672,6 +704,8 @@ No contiene lógica de backend ni acceso a base de datos.
                  | CODIGO_PETICION_PERMISOS: N               --x
                  | elEscanner: BluetoothLeScanner
                  | callbackDelEscaneo: ScanCallback
+                 | ultimaMedicion: Medicion?
+                 | clienteRest: ClienteRestMediciones
                  |
                  |
                  | --> buscarTodosLosDispositivosBTLE()
@@ -719,6 +753,12 @@ medicion: Medicion
                  | --> botonCargarMedicionFakePulsado()
                  |
                  |
+                 | --> botonGuardarYEnviarPulsado()
+                 |
+                 |
+                 | --> onDestroy()
+                 |
+                 |
                  | --> onCreate()
                  |
                  |
@@ -729,6 +769,196 @@ resultados: [Z]
                  |
                  ------------------------------------------------
 ```
+
+---
+
+### Clase `ClienteRestMediciones`
+
+Responsabilidad:
+
+Aislar el mecanismo de comunicación con el servidor de la interfaz de
+Android. El código de esta clase reside en:
+
+`src/phone/app/src/main/java/com/example/abalgra1/pbio/ClienteRestMediciones.java`.
+
+El cliente recibe una `Medicion` ya interpretada y un token; construye la carga
+JSON, ejecuta la comunicación HTTPS en un hilo de trabajo y devuelve el
+resultado mediante una notificación a la actividad. No analiza tramas BLE,
+no calcula concentraciones y no accede directamente a MySQL.
+
+Tipos lógicos auxiliares:
+
+```text
+ResultadoEnvio = (
+    codigo_http: Z,
+    respuesta: Text,
+    error: Text
+)
+```
+
+`ResultadoEnvio` es una descripción lógica del resultado comunicado al llamante.
+En la implementación se emplea la interfaz `CallbackEnvio` para notificarlo;
+la referencia a esa interfaz se omite de las firmas lógicas según la regla de
+abstracción de callbacks.
+
+```text
+                    --------------- ClienteRestMediciones ---------------
+                    |
+                    | url_mediciones: Text
+                    | ejecutor: Ejecutor
+                    |
+                    |
+medicion: Medicion   --> generarJSON() --x
+resultado: Text     <--
+                    |
+                    |
+medicion: Medicion,
+token: Text         --> enviarMedicion() -->
+                    |
+                    |
+                    | leerRespuesta(entrada: FlujoLectura) --x
+                    | resultado: Text <--
+                    |
+                    |
+                    --> cerrar() -->
+                    |
+                    -------------------------------------------------------
+```
+
+La clase se instancia en `MainActivity` y dispone de estas operaciones:
+
+**`generarJSON()`**
+
+```text
+medicion: Medicion --> generarJSON() --> Text
+```
+
+Serializa los campos `uuid`, `nombre_dispositivo`, `tipo`, `valor`, `contador`
+y `rssi`. No añade `Major`, `Minor`, `TxPower` ni `fecha_hora`: la fecha se genera
+en el servidor al guardar el registro.
+
+**`enviarMedicion()`**
+
+```text
+medicion: Medicion, token: Text --> enviarMedicion()
+```
+
+Realiza una petición `POST` al recurso:
+
+```text
+https://abalgra1.upv.edu.es/api/mediciones
+```
+
+La petición utiliza HTTPS, método POST, `Content-Type: application/json` y
+cabecera `X-PBIO-TOKEN`. La transmisión se ejecuta en un `ExecutorService`
+para no bloquear la interfaz. Se consideran satisfactorias las respuestas
+`HTTP 201`; el resultado o el error se entrega a `MainActivity` mediante el
+callback, en el hilo de trabajo. La actividad emplea `runOnUiThread` para
+actualizar la pantalla.
+
+**`leerRespuesta()`**
+
+```text
+entrada: FlujoLectura --> leerRespuesta() --> Text
+```
+
+Lee de forma acotada hasta 2048 caracteres del cuerpo de respuesta para
+facilitar el diagnóstico de la comunicación.
+
+**`cerrar()`**
+
+```text
+cerrar()
+```
+
+Solicita la terminación de las tareas del ejecutor cuando se destruye la
+actividad Android. No modifica ningún registro de la base de datos.
+
+---
+
+### Flujo de envío Android a servidor
+
+```text
+Arduino (o LogicaFakeTelefono)
+        |
+        v
+Medicion ya interpretada
+        |
+        v
+ultimaMedicion
+        |
+        v
+Botón «Guardar y enviar al servidor»
+        |
+        v
+MainActivity.botonGuardarYEnviarPulsado()
+        |  obtiene BuildConfig.PBIO_API_TOKEN
+        v
+ClienteRestMediciones.enviarMedicion()
+        |  genera JSON en segundo plano
+        v
+POST HTTPS /api/mediciones
+        |
+        v
+communication (PHP)
+        |
+        v
+business_logic (PHP)
+        |
+        v
+MySQL: tabla medicion
+        |
+        v
+HTTP 201 → textoEstadoRest: envío correcto
+```
+
+La operación es manual: los anuncios BLE se actualizan en pantalla, pero solo
+una pulsación explícita produce un intento de almacenamiento.
+
+---
+
+### botonGuardarYEnviarPulsado()
+
+```text
+botonGuardarYEnviarPulsado()
+```
+
+Responsabilidad:
+
+Tomar la última medición almacenada en memoria, comprobar que existe un token
+de demostración disponible y delegar el envío en `ClienteRestMediciones`.
+Mientras se procesa, desactiva el botón y muestra el estado «enviando».
+Al recibir el resultado, vuelve a activar el botón y presenta éxito
+(`HTTP 201`) o el mensaje de error.
+
+No realiza directamente operaciones SQL ni construye conexiones HTTPS.
+
+---
+
+### onDestroy()
+
+```text
+onDestroy()
+```
+
+Responsabilidad:
+
+Cerrar el ejecutor de comunicaciones mediante `clienteRest.cerrar()` cuando
+la actividad finaliza.
+
+---
+
+### Configuración local del token
+
+El archivo `src/phone/local.properties` incluye una propiedad local
+`PBIO_API_TOKEN`, además de `sdk.dir`. Gradle habilita `buildConfig = true` y
+expone el valor solo en la variante `debug` mediante
+`BuildConfig.PBIO_API_TOKEN`. La variante `release` no incorpora ese token.
+
+`local.properties` debe quedar excluido de Git y de los ZIP de entrega. La
+compilación de demostración incorpora materialmente el valor en la APK;
+por tanto, esa APK no debe distribuirse públicamente y el método no debe
+confundirse con autenticación robusta para una app de producción.
 
 ---
 
@@ -904,9 +1134,12 @@ tipo / contador / valor
 actualizarDatosSensor()
 ```
 
-La operación no almacena datos.
+La operación no envía peticiones REST ni inserta datos en MySQL.
 
-No realiza comunicaciones REST.
+Si la trama corresponde al UUID `EPSG-GTI-PROY-3A` y al tipo de medición 14,
+construye un objeto `Medicion` con el valor en ppb (incluido el signo),
+el contador y el RSSI, y lo conserva como `ultimaMedicion`. La transmisión
+quedará pendiente hasta que se pulse el botón de envío.
 
 ---
 
@@ -1115,7 +1348,8 @@ Solicitar una medición a:
 LogicaFakeTelefono.crearMedicionFake()
 ```
 
-y mostrarla en la interfaz.
+y mostrarla en la interfaz. Además, conserva la medición ficticia en
+`ultimaMedicion`, de forma que puede enviarse con el mismo botón que una real.
 
 El flujo es:
 
@@ -1133,6 +1367,9 @@ Medicion
         |
         v
 mostrarMedicionFake()
+        |
+        v
+ultimaMedicion (lista para envio manual)
 ```
 
 ---
@@ -1273,7 +1510,13 @@ y añade:
 
 ```text
 Cargar medición fake
+
+Guardar y enviar al servidor
 ```
+
+Bajo el botón de envío se encuentra el estado `textoEstadoRest`, que comunica
+«sin envíos», «enviando», éxito `HTTP 201` o un error. El token no se introduce
+en la interfaz.
 
 La zona de información muestra:
 
@@ -1337,6 +1580,9 @@ PBIO - Sensor BLE
 
 [ Cargar medición fake ]
 
+[ Guardar y enviar al servidor ]
+
+REST: sin envíos
 
 Estado: Sensor detectado
 
@@ -1494,8 +1740,21 @@ valor
    v
 MainActivity
    |
-   v
-interfaz
+   +--> interfaz: valor, tipo y contador
+   |
+   +--> ultimaMedicion
+            |
+            v
+        botonGuardarYEnviarPulsado()
+            |
+            v
+        ClienteRestMediciones
+            |
+            v
+        REST /api/mediciones
+            |
+            v
+        MySQL
 ```
 
 ---
@@ -1601,6 +1860,23 @@ obteniendo:
 ```text
 BUILD SUCCESSFUL
 ```
+
+---
+
+#### Estado de las pruebas del envío REST
+
+Se ha validado físicamente el envío desde la aplicación PBIO en un teléfono
+Android: una petición de medición real obtuvo `HTTP 201` y el registro apareció
+posteriormente en la respuesta `GET /api/mediciones` del servidor. Entre las
+mediciones comprobadas se encuentran los valores `119 ppb` y `-32 ppb`, que
+conservan el signo, el contador y el RSSI.
+
+La comprobación anterior es una **prueba de integración real**, no un test
+unitario automatizado de `ClienteRestMediciones`. Actualmente el ZIP auditado
+contiene `TramaIBeaconTest`, `LogicaFakeTelefonoTest`, `UtilidadesTest` y
+`ExampleUnitTest`; no se ha verificado la existencia de un test unitario
+específico del cliente HTTPS. Se debe incorporar cuando se amplíe la cobertura
+de los métodos clave para superar la auditoría.
 
 ---
 
@@ -1971,9 +2247,10 @@ aplicación.
 - Por tanto, la recepción física Arduino-Android ya se considera validada para
   Sprint 0.
 
-- El futuro cliente REST recibirá una `Medicion` ya interpretada.
+- `ClienteRestMediciones` ya recibe una `Medicion` interpretada y gestiona el
+  envío HTTP HTTPS fuera de `MainActivity`.
 
-- El cliente REST no deberá conocer:
+- El cliente REST no conoce:
 
   ```text
   Major
@@ -2053,7 +2330,7 @@ aplicación.
   no resulten evidentes únicamente leyendo el código.
 
 - **Separation of Responsibilities:** La interpretación BLE, el modelo lógico
-  de medición, las futuras comunicaciones REST y el backend deben mantenerse
+  de medición, las comunicaciones REST implementadas y el backend deben mantenerse
   separados.
 
 - `TramaIBeacon` no realiza lógica REST.
@@ -2064,7 +2341,12 @@ aplicación.
 
 - `MainActivity` no accede a la base de datos.
 
-- `MainActivity` tampoco realiza actualmente comunicaciones REST.
+- `MainActivity` inicia el envío REST únicamente mediante la colaboración
+  con `ClienteRestMediciones` y no implementa el transporte directamente.
+
+- `BuildConfig.PBIO_API_TOKEN` está disponible solo en la compilación `debug`.
+  El token privado no debe aparecer en archivos versionados; su presencia
+  dentro de la APK de depuración impide tratarla como un secreto inviolable.
 
 - **Compatibility:** Se conserva el código proporcionado por los profesores
   siempre que sea compatible y funcional.
@@ -2136,5 +2418,16 @@ aplicación.
 
   antes de considerarse definitivos.
 
-- Las futuras incorporaciones del cliente REST deberán añadirse al diseño antes
-  de modificar la implementación del componente Android.
+- Cualquier cambio posterior del cliente REST, del contrato JSON o del
+  mecanismo de autenticación deberá actualizar este diseño, las pruebas y el
+  contrato con `doc/communication_design.md`.
+
+- **Pruebas automatizadas pendientes:** Incorporar tests verificables para
+  `ClienteRestMediciones` y el proceso de envío sin depender de Internet.
+
+- **Alcance del desacoplamiento:** La interfaz web de `src/gui/` usa su proxy
+  de dominio `src/frontend_business_logic/`. En Android, `MainActivity`
+  todavía conoce `ClienteRestMediciones` como dependencia; una eventual
+  exigencia de aplicar literalmente ese proxy de dominio también a la
+  pantalla Android requerirá una refactorización adicional, que no se
+  presenta como ya realizada.

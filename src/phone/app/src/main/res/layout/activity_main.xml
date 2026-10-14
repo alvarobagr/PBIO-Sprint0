@@ -3,13 +3,12 @@
 <!--
 Fichero: activity_main.xml
 Descripción: Interfaz principal de la aplicación Android para controlar el
-             escaneo BLE, mostrar los datos del sensor y probar una medición
-             ficticia.
+             escaneo BLE, mostrar datos del sensor y enviar mediciones a REST.
 Copyright: Copyright (c) 2026 Álvaro Ballester Grau
-Fecha: 04/10/2026
+Fecha: 12/10/2026
 Autor: Álvaro Ballester Grau
-Aportación: Adaptación de la interfaz proporcionada por los profesores y
-            ampliación para visualizar mediciones reales y ficticias.
+Aportación: Conservación de controles originales y adición de envío manual
+            al servidor REST de Plesk sin introducir el token en la interfaz.
 -->
 
 <ScrollView
@@ -62,6 +61,21 @@ Aportación: Adaptación de la interfaz proporcionada por los profesores y
             android:layout_height="wrap_content"
             android:text="Cargar medición fake"
             android:onClick="botonCargarMedicionFakePulsado"
+            android:layout_marginBottom="12dp" />
+
+        <Button
+            android:id="@+id/botonGuardarYEnviar"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Guardar y enviar al servidor"
+            android:onClick="botonGuardarYEnviarPulsado" />
+
+        <TextView
+            android:id="@+id/textoEstadoRest"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="REST: sin envíos"
+            android:textSize="14sp"
             android:layout_marginBottom="24dp" />
 
         <TextView
