@@ -14,7 +14,7 @@ Aportacion: Implementacion de los endpoints REST de consulta y registro
 */
 
 // -------------------------------------------------------------------------
-// codigo: N, datos: Any --> responderJSON()
+// codigo: N, datos: Text --> responderJSON() --> RespuestaHTTP
 //
 // Envia una respuesta HTTP en formato JSON y termina la ejecucion.
 // -------------------------------------------------------------------------

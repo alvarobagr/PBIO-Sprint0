@@ -64,39 +64,39 @@ MedicionBD = (
 
 `ConexionBD` representa de forma abstracta una conexión a la persistencia relacional. En PHP se implementa mediante `PDO`, recibido por el constructor; la creación de la conexión y las credenciales quedan fuera de este componente.
 
+
 ```text
-                              --------- LogicaMediciones ---------
-                              |
-                              | conexion: ConexionBD
-                              |
-                              | filaAMedicion(fila: MedicionBD) <--
-                              | resultado: Medicion
-                              |
-                              |
-conexion: ConexionBD       --> LogicaMediciones() -->
-                              |
-                              |
-entrada: MedicionEntrada   --> validarMedicion() <--
-valida: B                  <--
-                              |
-                              |
-entrada: MedicionEntrada   --> guardarMedicion() -->
-medicion: Medicion         <--
-                              |
-                              |
-limite: N                  --> listarMediciones() <--
-mediciones: [Medicion]     <--
-                              |
-                              |
-tipo: Text                 --> obtenerUltimaMedicion() <--
-medicion: Medicion?        <--
-                              |
-                              |
-uuid: Text, limite: N      --> obtenerMedicionesDispositivo() <--
-mediciones: [Medicion]     <--
-                              |
-                              ------------------------------------
+                                          ---------- LogicaMediciones ----------
+                                          |
+                                          | conexion: ConexionBD
+                                          | fila: MedicionBD --> filaAMedicion() --> Medicion  (privada)
+                                          |
+                                          |
+conexion: ConexionBD                  --> LogicaMediciones() -->
+                                          |
+                                          |
+entrada: MedicionEntrada              --> validarMedicion() <--
+valida: B                             <--
+                                          |
+                                          |
+entrada: MedicionEntrada              --> guardarMedicion() -->
+medicion: Medicion                    <--
+                                          |
+                                          |
+limite: N                             --> listarMediciones() <--
+mediciones: [Medicion]                <--
+                                          |
+                                          |
+tipo: Text                            --> obtenerUltimaMedicion() <--
+medicion: Medicion?                   <--
+                                          |
+                                          |
+uuid: Text, limite: N                 --> obtenerMedicionesDispositivo() <--
+mediciones: [Medicion]                <--
+                                          |
+                                          ----------------------------------------------
 ```
+
 
 Las operaciones públicas aparecen atravesando el límite de la clase y la conversión auxiliar `filaAMedicion()` permanece dentro de él, por ser privada. La flecha derecha `-->` indica modificación del estado o de la persistencia; `<--` indica consulta sin modificación.
 

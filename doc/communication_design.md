@@ -237,7 +237,9 @@ PBIO-Sprint0/
 └── src/
     ├── communication/
     │   ├── index.php
-    │   └── .htaccess
+    │   ├── .htaccess
+    │   └── tests/
+    │       └── test_rest_http.mjs
     ├── business_logic/
     │   ├── LogicaMediciones.php
     │   └── tests/
@@ -268,7 +270,15 @@ Home directory/
 
 Se han comprobado manualmente en Plesk las tres rutas GET y el POST autorizado con respuesta `201`; también se ha verificado el envío desde Android y su visualización posterior en la web.
 
-Las **pruebas HTTP automatizadas aún están pendientes**. Se deberán añadir bajo `src/communication/tests/`, preferentemente sobre un entorno de pruebas independiente, y cubrir como mínimo: GET de lista y última medición; filtro por UUID; POST válido; token ausente/erróneo; JSON incorrecto; tipo de contenido; límites inválidos; métodos no permitidos y errores sin información sensible. Las pruebas que creen registros no deben alterar los datos de producción.
+Existe la suite automatizada `src/communication/tests/test_rest_http.mjs`, ejecutable desde la raíz del repositorio mediante:
+
+```powershell
+node --test src/communication/tests/test_rest_http.mjs
+```
+
+**Resultado comprobado el 14/10/2026: 11 pruebas superadas y 0 fallidas contra el REST de Plesk.** Comprueban el listado de mediciones (límites `5` y `1`), la última medición de `O3`, el filtrado por UUID (dispositivo conocido y desconocido), tres límites inválidos (`0`, `101` y `abc`), un tipo no admitido, una ruta inexistente y el rechazo de un POST sin token (`401`). Las peticiones GET son de lectura y el POST sin autorización se rechaza sin crear registros. Estas pruebas no requieren claves privadas.
+
+**Cobertura todavía pendiente:** automatizar un POST autorizado sobre un entorno de pruebas aislado, el token incorrecto, JSON mal formado, `Content-Type` inválido, métodos no permitidos y otros errores de entrada. El POST autorizado sí se verificó manualmente, pero esa comprobación no se presenta como test automatizado. Las futuras pruebas de escritura deberán evitar modificar la base de datos de producción.
 
 ## Design Clarifications
 

@@ -29,21 +29,21 @@ Medicion = (
 limite: N --> listarMediciones() --> [Medicion]
 tipo: Text --> obtenerUltimaMedicion() --> Medicion?
 ```
-
 ```text
-                                           -------- LogicaMedicionesCliente --------
-                                           |
-                                           | mecanismo_consulta: MecanismoConsulta
-                                           |
-                                           |
-limite: N                     --> listarMediciones() <--
-mediciones: [Medicion] <--
-                                           |
-                                           |
-tipo: Text                  --> obtenerUltimaMedicion() <--
-medicion: Medicion? <--
-                                           |
-                                           -----------------------------------------
+                                         -------- LogicaMedicionesCliente --------
+                                         |
+                                         | mecanismo_consulta: MecanismoConsulta
+                                         |
+                                         |
+limite: N                      --> listarMediciones() <--
+mediciones: [Medicion]         <--
+                                         |
+                                         |
+tipo: Text                --> obtenerUltimaMedicion() <--
+medicion: Medicion?       <--
+                                         |
+                                         ------------------------------------------------
+
 ```
 
 `Medicion?` representa una medición o la ausencia de mediciones (`null`). El diseño lógico no expresa la naturaleza asíncrona de JavaScript porque es un detalle técnico de implementación.

@@ -14,7 +14,6 @@ declare(strict_types=1);
 
 // Este test se ejecuta desde una terminal, no desde el navegador.
 if (PHP_SAPI !== 'cli') {
-    http_response_code(403);
     exit('Este test debe ejecutarse desde la terminal.');
 }
 

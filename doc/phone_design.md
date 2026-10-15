@@ -84,57 +84,57 @@ Representar y separar los distintos campos de una trama iBeacon recibida por
 el teléfono.
 
 ```text
-                 --------- TramaIBeacon ------------------
-                 |
-                 | prefijo: [N]_9
-                 | uuid: [N]_16
-                 | major: [N]_2
-                 | minor: [N]_2
-                 | tx_power: Z
-                 | los_bytes: [N]
-                 | adv_flags: [N]_3
-                 | adv_header: [N]_2
-                 | company_id: [N]_2
-                 | ibeacon_type: N
-                 | ibeacon_length: N
-                 |
-                 |
-bytes: [N]    --> TramaIBeacon() -->
-                 |
-                 |
-[N]_9         <-- getPrefijo() <--
-                 |
-                 |
-[N]_16        <-- getUUID() <--
-                 |
-                 |
-[N]_2         <-- getMajor() <--
-                 |
-                 |
-[N]_2         <-- getMinor() <--
-                 |
-                 |
-Z             <-- getTxPower() <--
-                 |
-                 |
-[N]           <-- getLosBytes() <--
-                 |
-                 |
-[N]_3         <-- getAdvFlags() <--
-                 |
-                 |
-[N]_2         <-- getAdvHeader() <--
-                 |
-                 |
-[N]_2         <-- getCompanyID() <--
-                 |
-                 |
-N             <-- getiBeaconType() <--
-                 |
-                 |
-N             <-- getiBeaconLength() <--
-                 |
-                 ------------------------------------------
+                                                --------- TramaIBeacon ------------------
+                                                |
+                                                | prefijo: [N]_9
+                                                | uuid: UUID
+                                                | major: [N]_2
+                                                | minor: [N]_2
+                                                | tx_power: Z
+                                                | los_bytes: [N]
+                                                | adv_flags: [N]_3
+                                                | adv_header: [N]_2
+                                                | company_id: [N]_2
+                                                | ibeacon_type: N
+                                                | ibeacon_length: N
+                                                |
+                                                |
+bytes: [N]                           --> TramaIBeacon() -->
+                                                |
+                                                |
+prefijo: [N]_9                        <-- getPrefijo() <--
+                                                |
+                                                |
+uuid: UUID                              <-- getUUID() <--
+                                                |
+                                                |
+major: [N]_2                           <-- getMajor() <--
+                                                |
+                                                |
+minor: [N]_2                           <-- getMinor() <--
+                                                |
+                                                |
+tx_power: Z                           <-- getTxPower() <--
+                                                |
+                                                |
+bytes: [N]                            <-- getLosBytes() <--
+                                                |
+                                                |
+adv_flags: [N]_3                      <-- getAdvFlags() <--
+                                                |
+                                                |
+adv_header: [N]_2                    <-- getAdvHeader() <--
+                                                |
+                                                |
+company_id: [N]_2                    <-- getCompanyID() <--
+                                                |
+                                                |
+tipo_ibeacon: N                     <-- getiBeaconType() <--
+                                                |
+                                                |
+longitud: N                        <-- getiBeaconLength() <--
+                                                |
+                                                ------------------------------------------------
 ```
 
 La clase únicamente representa y separa campos.
@@ -154,57 +154,60 @@ La clase no mantiene estado.
 Todas sus operaciones son estáticas.
 
 ```text
-                 --------- Utilidades ---------------------
-
-texto: Text
-              --> stringToBytes() --> [N]                 --x
-
-
-uuid: Text
-              --> stringToUUID() --> UUID                 --x
-
-
-uuid: UUID
-              --> uuidToString() --> Text                 --x
-
-
-uuid: UUID
-              --> uuidToHexString() --> Text              --x
-
-
-bytes: [N]
-              --> bytesToString() --> Text                --x
-
-
+                                                                   --------- Utilidades ------------------
+                                                                   |
+                                                                   | Sin atributos de instancia; todos los métodos son estáticos
+                                                                   |
+                                                                   |
+texto: Text                                             --> stringToBytes() --x
+bytes: [N]                                              <--
+                                                                   |
+                                                                   |
+uuid: Text                                              --> stringToUUID() --x
+uuid: UUID                                              <--
+                                                                   |
+                                                                   |
+uuid: UUID                                              --> uuidToString() --x
+texto: Text                                             <--
+                                                                   |
+                                                                   |
+uuid: UUID                                             --> uuidToHexString() --x
+texto: Text                                            <--
+                                                                   |
+                                                                   |
+bytes: [N]                                              --> bytesToString() --x
+texto: Text                                             <--
+                                                                   |
+                                                                   |
 mas_significativos: Z,
-menos_significativos: Z
-              --> dosLongToBytes() --> [N]_16             --x
-
-
-bytes: [N]
-              --> bytesToInt() --> Z                      --x
-
-
-bytes: [N]
-              --> bytesToLong() --> Z                     --x
-
-
-bytes: [N]
-              --> bytesToIntOK() --> Z                    --x
-
-
-bytes: [N]_2
-              --> bytesToUInt16() --> N                   --x
-
-
-bytes: [N]_2
-              --> bytesToInt16ConSigno() --> Z            --x
-
-
-bytes: [N]
-              --> bytesToHexString() --> Text             --x
-
-                 ------------------------------------------
+menos_significativos: Z                                --> dosLongToBytes() --x
+bytes: [N]_16                                          <--
+                                                                   |
+                                                                   |
+bytes: [N]                                               --> bytesToInt() --x
+valor: Z                                                 <--
+                                                                   |
+                                                                   |
+bytes: [N]                                               --> bytesToLong() --x
+valor: Z                                                 <--
+                                                                   |
+                                                                   |
+bytes: [N]                                              --> bytesToIntOK() --x
+valor: Z                                                <--
+                                                                   |
+                                                                   |
+bytes: [N]_2                                            --> bytesToUInt16() --x
+valor: N                                                <--
+                                                                   |
+                                                                   |
+bytes: [N]_2                                        --> bytesToInt16ConSigno() --x
+valor: Z                                            <--
+                                                                   |
+                                                                   |
+bytes: [N]                                            --> bytesToHexString() --x
+texto: Text                                           <--
+                                                                   |
+                                                                   ------------------------------------------------
 ```
 
 ---
@@ -500,43 +503,39 @@ Representar una medición ya interpretada por el teléfono y preparada para ser
 utilizada por las siguientes capas del sistema.
 
 ```text
-                 ------------ Medicion -----------------
-                 |
-                 | uuid: Text
-                 | nombre_dispositivo: Text
-                 | tipo: Text
-                 | valor: Z
-                 | contador: N
-                 | rssi: Z
-                 |
-                 |
-uuid: Text,
-nombre_dispositivo: Text,
-tipo: Text,
-valor: Z,
-contador: N,
-rssi: Z
-              --> Medicion() -->
-                 |
-                 |
-Text          <-- getUuid() <--
-                 |
-                 |
-Text          <-- getNombreDispositivo() <--
-                 |
-                 |
-Text          <-- getTipo() <--
-                 |
-                 |
-Z             <-- getValor() <--
-                 |
-                 |
-N             <-- getContador() <--
-                 |
-                 |
-Z             <-- getRssi() <--
-                 |
-                 ---------------------------------------
+                                                --------- Medicion ------------------
+                                                |
+                                                | uuid: Text
+                                                | nombre_dispositivo: Text
+                                                | tipo: Text
+                                                | valor: Z
+                                                | contador: N
+                                                | rssi: Z
+                                                |
+                                                |
+uuid: Text, nombre_dispositivo: Text,
+tipo: Text, valor: Z, contador: N,
+rssi: Z                                --> Medicion() -->
+                                                |
+                                                |
+uuid: Text                              <-- getUuid() <--
+                                                |
+                                                |
+nombre_dispositivo: Text         <-- getNombreDispositivo() <--
+                                                |
+                                                |
+tipo: Text                              <-- getTipo() <--
+                                                |
+                                                |
+valor: Z                               <-- getValor() <--
+                                                |
+                                                |
+contador: N                           <-- getContador() <--
+                                                |
+                                                |
+rssi: Z                                 <-- getRssi() <--
+                                                |
+                                                ------------------------------------------------
 ```
 
 La medición no contiene datos propios de la codificación BLE como:
@@ -566,11 +565,14 @@ mediciones reales obtenidas mediante Bluetooth.
 La clase no mantiene estado.
 
 ```text
-                 -------- LogicaFakeTelefono --------
-
-                 | --> crearMedicionFake() --> Medicion --x
-
-                 -------------------------------------
+                                                  --------- LogicaFakeTelefono ------------------
+                                                  |
+                                                  | Sin atributos de instancia; método estático
+                                                  |
+                                                  |
+medicion: Medicion                   <-- crearMedicionFake() --x
+                                                  |
+                                                  ------------------------------------------------
 ```
 
 ---
@@ -698,76 +700,65 @@ No contiene lógica de backend ni acceso a base de datos. La actividad coordina
 la petición, pero no construye JSON ni ejecuta conexiones HTTPS directamente.
 
 ```text
-                 ---------------- MainActivity ----------------
-                 |
-                 | ETIQUETA_LOG: Text                         --x
-                 | CODIGO_PETICION_PERMISOS: N               --x
-                 | elEscanner: BluetoothLeScanner
-                 | callbackDelEscaneo: ScanCallback
-                 | ultimaMedicion: Medicion?
-                 | clienteRest: ClienteRestMediciones
-                 |
-                 |
-                 | --> buscarTodosLosDispositivosBTLE()
-                 |
-                 |
-resultado: ScanResult
-              --> mostrarInformacionDispositivoBTLE()
-                 |
-                 |
-dispositivo_buscado: Text
-              --> buscarEsteDispositivoBTLE()
-                 |
-                 |
-                 | --> detenerBusquedaDispositivosBTLE()
-                 |
-                 |
-                 | --> inicializarBlueTooth()
-                 |
-                 |
-nombre_dispositivo: Text,
-uuid: Text,
-major: N,
-minor: N,
-tipo: N,
-contador: N,
-valor: Z,
-rssi: Z,
-tx_power: Z
-              --> actualizarDatosSensor()
-                 |
-                 |
-medicion: Medicion
-              --> mostrarMedicionFake()
-                 |
-                 |
-                 | --> botonBuscarDispositivosBTLEPulsado()
-                 |
-                 |
-                 | --> botonBuscarNuestroDispositivoBTLEPulsado()
-                 |
-                 |
-                 | --> botonDetenerBusquedaDispositivosBTLEPulsado()
-                 |
-                 |
-                 | --> botonCargarMedicionFakePulsado()
-                 |
-                 |
-                 | --> botonGuardarYEnviarPulsado()
-                 |
-                 |
-                 | --> onDestroy()
-                 |
-                 |
-                 | --> onCreate()
-                 |
-                 |
+                                                                                  --------- MainActivity ------------------
+                                                                                  |
+                                                                                  | ETIQUETA_LOG: Text (estática)
+                                                                                  | CODIGO_PETICION_PERMISOS: N (estática)
+                                                                                  | elEscanner: BluetoothLeScanner
+                                                                                  | callbackDelEscaneo: ScanCallback
+                                                                                  | ultimaMedicion: Medicion?
+                                                                                  | clienteRest: ClienteRestMediciones
+                                                                                  |
+                                                                                  |
+                                                                             onCreate() -->
+                                                                                  |
+                                                                                  |
+                                                                       inicializarBlueTooth() -->
+                                                                                  |
+                                                                                  |
+                                                                  buscarTodosLosDispositivosBTLE() -->
+                                                                                  |
+                                                                                  |
+dispositivo_buscado: Text                                        --> buscarEsteDispositivoBTLE() -->
+                                                                                  |
+                                                                                  |
+resultado: ScanResult                                        --> mostrarInformacionDispositivoBTLE() -->
+                                                                                  |
+                                                                                  |
+nombre_dispositivo: Text, uuid: Text,
+major: N, minor: N, tipo: N,
+contador: N, valor: Z, rssi: Z,
+tx_power: Z                                                        --> actualizarDatosSensor() -->
+                                                                                  |
+                                                                                  |
+medicion: Medicion                                                  --> mostrarMedicionFake() -->
+                                                                                  |
+                                                                                  |
+                                                                  detenerBusquedaDispositivosBTLE() -->
+                                                                                  |
+                                                                                  |
+                                                                botonBuscarDispositivosBTLEPulsado() -->
+                                                                                  |
+                                                                                  |
+                                                             botonBuscarNuestroDispositivoBTLEPulsado() -->
+                                                                                  |
+                                                                                  |
+                                                            botonDetenerBusquedaDispositivosBTLEPulsado() -->
+                                                                                  |
+                                                                                  |
+                                                                  botonCargarMedicionFakePulsado() -->
+                                                                                  |
+                                                                                  |
+                                                                    botonGuardarYEnviarPulsado() -->
+                                                                                  |
+                                                                                  |
 request_code: N,
-resultados: [Z]
-              --> onRequestPermissionsResult()
-                 |
-                 |
-                 ------------------------------------------------
+resultados: [Z]                                                 --> onRequestPermissionsResult() -->
+                                                                                  |
+                                                                                  |
+                                                                             onDestroy() -->
+                                                                                  |
+                                                                                  ------------------------------------------------
 ```
 
 ---
@@ -799,30 +790,30 @@ ResultadoEnvio = (
 `ResultadoEnvio` es una descripción lógica del resultado comunicado al llamante.
 En la implementación se emplea la interfaz `CallbackEnvio` para notificarlo;
 la referencia a esa interfaz se omite de las firmas lógicas según la regla de
-abstracción de callbacks.
+abstracción de callbacks. El resultado se notifica de forma asíncrona: el
+método Java devuelve `void`, mientras que la firma expresa el resultado
+lógico de la operación.
 
 ```text
-                    --------------- ClienteRestMediciones ---------------
-                    |
-                    | url_mediciones: Text
-                    | ejecutor: Ejecutor
-                    |
-                    |
-medicion: Medicion   --> generarJSON() --x
-resultado: Text     <--
-                    |
-                    |
-medicion: Medicion,
-token: Text         --> enviarMedicion() -->
-                    |
-                    |
-                    | leerRespuesta(entrada: FlujoLectura) --x
-                    | resultado: Text <--
-                    |
-                    |
-                    --> cerrar() -->
-                    |
-                    -------------------------------------------------------
+                                                                         --------- ClienteRestMediciones ------------------
+                                                                         |
+                                                                         | url_mediciones: Text (estática)
+                                                                         | ejecutor: Ejecutor
+                                                                         |
+                                                                         |
+medicion: Medicion                                             --> generarJSON() --x
+json: Text                                                     <--
+                                                                         |
+                                                                         |
+medicion: Medicion, token: Text                              --> enviarMedicion() -->
+resultado: ResultadoEnvio                                    <--
+                                                                         |
+                                                                         |
+                                                                     cerrar() -->
+                                                                         | leerRespuesta(entrada: FlujoLectura) --> Text
+                                                                         | (privada, estática)
+                                                                         |
+                                                                         ------------------------------------------------
 ```
 
 La clase se instancia en `MainActivity` y dispone de estas operaciones:
@@ -840,7 +831,7 @@ en el servidor al guardar el registro.
 **`enviarMedicion()`**
 
 ```text
-medicion: Medicion, token: Text --> enviarMedicion()
+medicion: Medicion, token: Text --> enviarMedicion() --> ResultadoEnvio
 ```
 
 Realiza una petición `POST` al recurso:
